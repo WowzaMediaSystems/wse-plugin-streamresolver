@@ -4,7 +4,7 @@ StreamResolver is a Wowza Streaming Engine module that will dynamically determin
 
 ## Prerequisites
 
-S3 Upload requires the AWS Java SDK to provide the upload functionality.  Download the [AWS SDK for Java](http://aws.amazon.com/sdk-for-java/), unzip it and copy `lib/aws-java-sdk-xx.xx.xx.jar` to your Wowza Streaming Engine `[install-dir]/lib/ folder`. 
+Wowza Streaming Engine
 
 ## Installation
 
@@ -14,9 +14,17 @@ Copy `wse-plugin-resolver.jar` to your Wowza Streaming Engine `[install-dir]/lib
 
 Add the following Module Definition to your Application configuration. See [Configure modules](http://www.wowza.com/forums/content.php?625-How-to-get-started-as-a-Wowza-Streaming-Engine-Manager-administrator#configModules) for details.
 
+For the edge:
+
 Name | Description | Fully Qualified Class Name
 -----|-------------|---------------------------
-ModuleS3Upload | Upload recordings to Amazon S3. | com.wowza.wms.plugin.s3upload.ModuleS3Upload
+ModuleStreamResolver | Resolve streams from origin dynamically. | com.wowza.wms.example.module.StreamResolver
+
+For the origin:
+
+Name | Description | Fully Qualified Class Name
+-----|-------------|---------------------------
+ModuleStreamResolver | Resolve streams from origin dynamically. | com.wowza.wms.example.module.ServerListenerLocateSourceStream
 
 ## Properties
 
