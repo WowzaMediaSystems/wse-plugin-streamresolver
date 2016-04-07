@@ -1,4 +1,8 @@
-package com.wowza.wms.example.module;
+/**
+ * This code and all components (c) Copyright 2006 - 2016, Wowza Media Systems, LLC.  All rights reserved.
+ * This code is licensed pursuant to the Wowza Public License version 1.0, available at www.wowza.com/legal.
+ */
+package com.wowza.wms.plugin.streamresolver;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -32,11 +36,9 @@ import com.wowza.wms.mediacaster.IMediaCaster;
 import com.wowza.wms.mediacaster.MediaCasterNotifyBase;
 import com.wowza.wms.mediacaster.wowza.LiveMediaStreamReceiver;
 import com.wowza.wms.module.ModuleBase;
-import com.wowza.wms.plugin.collection.wowzalocatesourcestream.Message;
-import com.wowza.wms.plugin.collection.wowzalocatesourcestream.UDPClient;
 import com.wowza.wms.stream.IMediaStreamNameAliasProvider;
 
-public class StreamResolver extends ModuleBase implements IMediaStreamNameAliasProvider
+public class ModuleStreamResolver extends ModuleBase implements IMediaStreamNameAliasProvider
 {
 	public static String MODULE_NAME = "ModuleStreamResolver";
 	public static String MODULE_PROPERTY_PREFIX = "wowzaResolver";
@@ -83,13 +85,13 @@ public class StreamResolver extends ModuleBase implements IMediaStreamNameAliasP
 		
 		try{
 			if(this.targetPath == null || this.targetPath.isEmpty()){
-				getLogger().error(StreamResolver.MODULE_NAME+".getNewURLsFromConfig could not find valid target file "+this.targetPath);
+				getLogger().error(ModuleStreamResolver.MODULE_NAME+".getNewURLsFromConfig could not find valid target file "+this.targetPath);
 				return null;
 			}
 			
 			File checkForFile = new File(this.targetPath);
 			if(!checkForFile.exists()){
-				getLogger().error(StreamResolver.MODULE_NAME+".getNewURLsFromConfig could not find valid target file "+this.targetPath);
+				getLogger().error(ModuleStreamResolver.MODULE_NAME+".getNewURLsFromConfig could not find valid target file "+this.targetPath);
 				return null;
 			}
 			
@@ -99,7 +101,7 @@ public class StreamResolver extends ModuleBase implements IMediaStreamNameAliasP
 			}
 		}
 		catch(Exception ex){
-			getLogger().error(StreamResolver.MODULE_NAME+".getNewURLsFromConfig Exception",ex);
+			getLogger().error(ModuleStreamResolver.MODULE_NAME+".getNewURLsFromConfig Exception",ex);
 			return null;
 		}
 		
@@ -120,7 +122,7 @@ public class StreamResolver extends ModuleBase implements IMediaStreamNameAliasP
 			urls = urls.replaceAll("[\\,\\s]+$","");
 		} 
 		catch (Exception e) {
-			getLogger().info(StreamResolver.MODULE_NAME+".getNewURLsFromConfig Exception",e);
+			getLogger().info(ModuleStreamResolver.MODULE_NAME+".getNewURLsFromConfig Exception",e);
 		} 
 		finally {
 			try {
@@ -137,7 +139,7 @@ public class StreamResolver extends ModuleBase implements IMediaStreamNameAliasP
 			in = null;
 		}
 		
-		getLogger().error(StreamResolver.MODULE_NAME+".getNewURLsFromConfig "+urls);
+		getLogger().error(ModuleStreamResolver.MODULE_NAME+".getNewURLsFromConfig "+urls);
 		lastFileModification = lastModified;
 		lastOriginSetting = urls;
 		
@@ -283,11 +285,11 @@ public class StreamResolver extends ModuleBase implements IMediaStreamNameAliasP
 		if (appInstance.getStreams().getStream(name) == null)
 		{
 			if (!isStreamAvaliable(name)){
-				getLogger().info(StreamResolver.MODULE_NAME+".getStreamName() stream not available");
+				getLogger().info(ModuleStreamResolver.MODULE_NAME+".getStreamName() stream not available");
 				return null;
 			}
 		}
-		getLogger().info(StreamResolver.MODULE_NAME+".getStreamName["+name+"] ");
+		getLogger().info(ModuleStreamResolver.MODULE_NAME+".getStreamName["+name+"] ");
 		return name;
 	}
 	
@@ -311,7 +313,7 @@ public class StreamResolver extends ModuleBase implements IMediaStreamNameAliasP
 				}
 			}
 		}
-		getLogger().info(StreamResolver.MODULE_NAME+".getOriginURLs "+ret);
+		getLogger().info(ModuleStreamResolver.MODULE_NAME+".getOriginURLs "+ret);
 		return ret;
 	}
 	
@@ -323,7 +325,7 @@ public class StreamResolver extends ModuleBase implements IMediaStreamNameAliasP
 			String name = mediaCaster.getMediaCasterId();
 			if (mediaCaster instanceof LiveMediaStreamReceiver)
 			{
-				getLogger().info(StreamResolver.MODULE_NAME+"**Resolving stream name: "+mediaCaster.getStream().getName());
+				getLogger().info(ModuleStreamResolver.MODULE_NAME+"**Resolving stream name: "+mediaCaster.getStream().getName());
 				((LiveMediaStreamReceiver)mediaCaster).resolveURL();
 				synchronized(lock)
 				{

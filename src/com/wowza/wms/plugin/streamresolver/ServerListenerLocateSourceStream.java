@@ -1,7 +1,10 @@
-package com.wowza.wms.example.module;
+/**
+ * This code and all components (c) Copyright 2006 - 2016, Wowza Media Systems, LLC.  All rights reserved.
+ * This code is licensed pursuant to the Wowza Public License version 1.0, available at www.wowza.com/legal.
+ */
+package com.wowza.wms.plugin.streamresolver;
 
 import com.wowza.wms.logging.WMSLoggerFactory;
-import com.wowza.wms.plugin.collection.wowzalocatesourcestream.UDPServer;
 import com.wowza.wms.server.IServer;
 import com.wowza.wms.server.IServerNotify2;
 
