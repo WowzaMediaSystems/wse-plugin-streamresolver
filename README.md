@@ -51,7 +51,7 @@ When a client/player requests a stream from an edge server, the edge will first 
 [Wowza Streaming Engine Server-Side API Reference](https://www.wowza.com/resources/WowzaStreamingEngine_ServerSideAPI.pdf)
 
 ## Contact
-Wowza Media Systems™, LLC
+[Wowza Media Systems™, LLC](https://www.wowza.com/contact)
 
 Wowza Media Systems provides developers with a platform to create streaming applications and solutions. See [Wowza Developer Tools](https://www.wowza.com/resources/developers) to learn more about our APIs and SDK.
 
