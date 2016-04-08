@@ -30,7 +30,7 @@ Copy `wse-plugin-streamresolver.jar` to your Wowza Streaming Engine `[install-di
 
 ## Properties
 
-   ### Edge Properties
+   ###Edge Properties
 
    Adjust the default settings by adding the following properties to your application. See [Configure properties](http://www.wowza.com/forums/content.php?625-How-to-get-started-as-a-Wowza-Streaming-Engine-Manager-administrator#configProperties) for details.
 
@@ -45,7 +45,7 @@ Copy `wse-plugin-streamresolver.jar` to your Wowza Streaming Engine `[install-di
    Root/Application | wowzaResolverOriginApplicationInstanceName | String | [_definst_] | (Optional) If edge is looking for streams on the origin that are not the same application instance name, you can define the new  name here.(default: uses requested app instance name from the edge).
    Root/Application | wowzaResolverOriginStreamName | String | [nameOfStream] | (Optional) If edge is looking for streams on the origin that are not the same stream name, you can define the new  name here.(default: uses requested stream name from edge).
 
-   ### Origin Properties
+   ###Origin Properties
 
    Adjust the default settings by adding the following properties to your application. See [Configure properties](http://www.wowza.com/forums/content.php?625-How-to-get-started-as-a-Wowza-Streaming-Engine-Manager-administrator#configProperties) for details.
    
