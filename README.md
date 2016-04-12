@@ -52,10 +52,10 @@ When a client/player requests a stream from an edge server, the edge will first 
 
 [How to extend Wowza Streaming Engine using the Wowza IDE](https://www.wowza.com/forums/content.php?759-How-to-extend-Wowza-Streaming-Engine-using-the-Wowza-IDE)
 
-## Contact
-[Wowza Media Systems™, LLC](https://www.wowza.com/contact)
+Wowza Media Systems™ provides developers with a platform to create streaming applications and solutions. See [Wowza Developer Tools](https://www.wowza.com/resources/developers) to learn more about our APIs and SDK.
 
-Wowza Media Systems provides developers with a platform to create streaming applications and solutions. See [Wowza Developer Tools](https://www.wowza.com/resources/developers) to learn more about our APIs and SDK.
+## Contact
+[Wowza Media Systems, LLC](https://www.wowza.com/contact)
 
 ## License
 This code is distributed under the [Wowza Public License](https://github.com/WowzaMediaSystems/wse-plugin-streamresolver/blob/master/LICENSE.txt).
