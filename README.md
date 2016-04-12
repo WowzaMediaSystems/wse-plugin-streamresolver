@@ -7,21 +7,21 @@ Wowza Streaming Engine 4.0.0 or later is required.
 ## Installation
 Copy the **wse-plugin-streamresolver.jar** file to your Wowza Streaming Engine **[install-dir]/lib/** folder. Do this on all origin and edge servers in your live stream repeater configuration.
 
-## Wowza Streaming Edge Server Configuration
+## Wowza Streaming Engine edge server configuration
 On each edge server in your live stream repeater setup, add the following module definition to your application configuration. See [Configure modules](https://www.wowza.com/forums/content.php?625-How-to-get-started-as-a-Wowza-Streaming-Engine-Manager-administrator#configModules) for details.
 
 **Name** | **Description** | **Fully Qualified Class Name**
 -----|-------------|---------------------------
 ModuleStreamResolver | Resolves streams from origin dynamically. | com.wowza.wms.plugin.streamresolver.ModuleStreamResolver
 
-## Wowza Streaming Origin Server Configuration
+## Wowza Streaming Engine origin server configuration
 On each origin server in your live stream repeater setup, add the following server listener definition to your media server. See [Configure server listeners](https://www.wowza.com/forums/content.php?625-How-to-get-started-as-a-Wowza-Streaming-Engine-Manager-administrator#configListeners) for details.
 
 | **Fully Qualified Class Name** |
 |----------------------------|
 | com.wowza.wms.example.module.ServerListenerLocateSourceStream |
 
-## Wowza Streaming Edge Server Properties
+## Wowza Streaming Engine edge server properties
 After enabling the module on each edge server, you can adjust the default settings by adding the following properties to your application. See [Configure properties](https://www.wowza.com/forums/content.php?625-How-to-get-started-as-a-Wowza-Streaming-Engine-Manager-administrator#configProperties) for details.
 
 **Path** | **Name** | **Type** | **Value** | **Notes**
@@ -35,7 +35,7 @@ Root/Application | wowzaResolverOriginApplicationName | String | [originAppName]
 Root/Application | wowzaResolverOriginApplicationInstanceName | String | \_definst\_ | (Optional) By default, the edge server application looks for streams on the origin server application with the same application instance name. Use this property to define a different application instance name on the origin server in which to look for streams. (default: uses requested edge application instance name)
 Root/Application | wowzaResolverOriginStreamName | String | [stream-name] | (Optional) By default, the edge server application looks for streams on the origin server application/application instance with the same stream name. Use this property to define a different stream name on the origin server to look for. (default: uses stream name requested from edge).
 
-## Wowza Streaming Engine Origin Server Properties
+## Wowza Streaming Engine origin server properties
 After enabling the server listener on each origin server, you can adjust the default settings by adding the following properties to your application. See [Configure properties](https://www.wowza.com/forums/content.php?625-How-to-get-started-as-a-Wowza-Streaming-Engine-Manager-administrator#configProperties) for details.
 
 **Path** | **Name** | **Type** | **Value** | **Notes**
@@ -47,8 +47,10 @@ Root/Application | wowzaSourceStreamHostName | String | [public-hostname.com] | 
 ## Usage
 When a client/player requests a stream from an edge server, the edge will first look for existing streams that it has already requested for a match. If none are found, it will then query the defined list of origin servers to return the requested stream. The edge server will connect to the origin server that responds first with a valid stream, and then serve that stream to the client/player.
 
-## API Reference
+## More resources
 [Wowza Streaming Engine Server-Side API Reference](https://www.wowza.com/resources/WowzaStreamingEngine_ServerSideAPI.pdf)
+
+[How to extend Wowza Streaming Engine using the Wowza IDE](https://www.wowza.com/forums/content.php?759-How-to-extend-Wowza-Streaming-Engine-using-the-Wowza-IDE)
 
 ## Contact
 [Wowza Media Systems™, LLC](https://www.wowza.com/contact)
