@@ -41,7 +41,7 @@ public class UDPClient {
 
 		      String messageStr = message.toString();
 
-		      this.logger.info(ServerListenerLocateSourceStream.MODULE_NAME+"[UDPClient]Sending UDP Message :: "+messageStr);
+		      this.logger.info(ServerListenerLocateSourceStream.MODULE_NAME+"[UDPClient]Sending UDP Message :: "+messageStr + " to server::" + clientSocket.getRemoteSocketAddress());
 
 		      sendData = messageStr.getBytes();
 		      DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, this.port);
@@ -50,7 +50,7 @@ public class UDPClient {
 		      clientSocket.receive(receivePacket);
 
 		      String responseString = new String(receivePacket.getData());
-		      this.logger.info(ServerListenerLocateSourceStream.MODULE_NAME+"[UDPClient] FROM SERVER:" + responseString);
+		      this.logger.info(ServerListenerLocateSourceStream.MODULE_NAME+"[UDPClient] FROM SERVER:" + responseString + " from server::" + clientSocket.getRemoteSocketAddress());
 
 		      clientSocket.close();
 		      return responseString;

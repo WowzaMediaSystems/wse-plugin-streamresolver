@@ -95,7 +95,7 @@ public class UDPServer {
 				DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
 				serverSocket.receive(receivePacket);
 				String message = new String(receivePacket.getData());
-				this.logger.info(ServerListenerLocateSourceStream.MODULE_NAME+"[UDPServer] listenForRequests::received message::"+message);
+				this.logger.info(ServerListenerLocateSourceStream.MODULE_NAME+"[UDPServer] listenForRequests::received message::"+message + " from server::" + serverSocket.getRemoteSocketAddress());
 
 				String responseString = "";
 				try{
@@ -106,7 +106,7 @@ public class UDPServer {
 						String requestedAppInstanceName = response[1].trim();
 
 						responseString = this.getStreamOrigin(requestedStreamName, requestedAppName, requestedAppInstanceName);
-						this.logger.info(ServerListenerLocateSourceStream.MODULE_NAME+"[UDPServer] listenForRequests::responseString::"+responseString);
+						this.logger.info(ServerListenerLocateSourceStream.MODULE_NAME+"[UDPServer] listenForRequests::responseString::"+responseString + " to server::" + serverSocket.getRemoteSocketAddress());
 					}
 				}
 				catch(Exception ex){
