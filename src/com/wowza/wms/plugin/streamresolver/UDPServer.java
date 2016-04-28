@@ -81,13 +81,14 @@ public class UDPServer {
 	}
 
 	private void listenForRequests(){
+		DatagramSocket serverSocket = null;
 		try{
 			if(this.debug){
 				this.logger.info(ServerListenerLocateSourceStream.MODULE_NAME+"[UDPServer] listenForRequests on port "+this.port);
 			}
 			WMSLoggerFactory.getLogger(getClass()).info(ServerListenerLocateSourceStream.MODULE_NAME+".listenForRequests starting UDP Server loop on port "+this.port+" ..");
 
-			DatagramSocket serverSocket = new DatagramSocket(this.port);
+			serverSocket = new DatagramSocket(this.port);
 			byte[] receiveData = new byte[1024];
 			byte[] sendData = new byte[1024];
 			while(true){
@@ -95,7 +96,7 @@ public class UDPServer {
 				DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
 				serverSocket.receive(receivePacket);
 				String message = new String(receivePacket.getData());
-				this.logger.info(ServerListenerLocateSourceStream.MODULE_NAME+"[UDPServer] listenForRequests::received message::"+message + " from server::" + serverSocket.getRemoteSocketAddress());
+				this.logger.info(ServerListenerLocateSourceStream.MODULE_NAME+"[UDPServer] listenForRequests::received message::"+message + " from server::" + receivePacket.getSocketAddress());
 
 				String responseString = "";
 				try{
@@ -106,7 +107,6 @@ public class UDPServer {
 						String requestedAppInstanceName = response[1].trim();
 
 						responseString = this.getStreamOrigin(requestedStreamName, requestedAppName, requestedAppInstanceName);
-						this.logger.info(ServerListenerLocateSourceStream.MODULE_NAME+"[UDPServer] listenForRequests::responseString::"+responseString + " to server::" + serverSocket.getRemoteSocketAddress());
 					}
 				}
 				catch(Exception ex){
@@ -121,6 +121,7 @@ public class UDPServer {
 
 					DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, port);
 					serverSocket.send(sendPacket);
+					this.logger.info(ServerListenerLocateSourceStream.MODULE_NAME+"[UDPServer] listenForRequests::responseString::"+responseString + " to server::" + receivePacket.getSocketAddress());
 				}
 				catch(Exception ex){
 					this.logger.error(ServerListenerLocateSourceStream.MODULE_NAME+"[UDPServer] listenForRequests::IP-Exception::",ex);

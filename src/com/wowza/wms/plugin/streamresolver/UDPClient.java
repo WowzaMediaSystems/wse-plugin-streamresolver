@@ -34,23 +34,23 @@ public class UDPClient {
 		      DatagramSocket clientSocket = new DatagramSocket();
 		      clientSocket.setSoTimeout(this.timeout);
 
-		      InetAddress IPAddress = InetAddress.getByName(this.host);
+		      InetAddress ipAddress = InetAddress.getByName(this.host);
 
 		      byte[] sendData = new byte[1024];
 		      byte[] receiveData = new byte[1024];
 
 		      String messageStr = message.toString();
 
-		      this.logger.info(ServerListenerLocateSourceStream.MODULE_NAME+"[UDPClient]Sending UDP Message :: "+messageStr + " to server::" + clientSocket.getRemoteSocketAddress());
+		      this.logger.info(ServerListenerLocateSourceStream.MODULE_NAME+"[UDPClient]Sending UDP Message :: "+messageStr + " to server :: " + this.host + ":" + ipAddress);
 
 		      sendData = messageStr.getBytes();
-		      DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, this.port);
+		      DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, ipAddress, this.port);
 		      clientSocket.send(sendPacket);
 		      DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
 		      clientSocket.receive(receivePacket);
 
 		      String responseString = new String(receivePacket.getData());
-		      this.logger.info(ServerListenerLocateSourceStream.MODULE_NAME+"[UDPClient] FROM SERVER:" + responseString + " from server::" + clientSocket.getRemoteSocketAddress());
+		      this.logger.info(ServerListenerLocateSourceStream.MODULE_NAME+"[UDPClient] FROM SERVER:" + responseString + " from server::" + receivePacket.getSocketAddress());
 
 		      clientSocket.close();
 		      return responseString;
