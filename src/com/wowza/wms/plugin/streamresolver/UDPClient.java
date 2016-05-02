@@ -12,37 +12,26 @@ import com.wowza.wms.logging.WMSLogger;
 
 public class UDPClient {
 	private String host;
-	private int hostPort;
-	private int localPort;
+	private int port;
 	private WMSLogger logger;
 	private int timeout = 2000;
 
 	public UDPClient(String server, int port, WMSLogger logger){
-		String[] parts = server.split(":");
-		this.host = parts[0];
-		if(parts.length > 1)
-			this.hostPort = Integer.parseInt(parts[1]);
-		else
-			this.hostPort = port;
-		this.localPort = port;
+		this.host = server;
+		this.port = port;
 		this.logger = logger;
 	}
 
 	public UDPClient(String server, int port, int timeout, WMSLogger logger){
-		String[] parts = server.split(":");
-		this.host = parts[0];
-		if(parts.length > 1)
-			this.hostPort = Integer.parseInt(parts[1]);
-		else
-			this.hostPort = port;
-		this.localPort = port;
+		this.host = server;
+		this.port = port;
 		this.timeout = timeout;
 		this.logger = logger;
 	}
 
 	public String send(Message message){
 			try{
-		      DatagramSocket clientSocket = new DatagramSocket(this.localPort);
+		      DatagramSocket clientSocket = new DatagramSocket();
 		      clientSocket.setSoTimeout(this.timeout);
 
 		      InetAddress ipAddress = InetAddress.getByName(this.host);
@@ -55,7 +44,7 @@ public class UDPClient {
 		      this.logger.info(ServerListenerLocateSourceStream.MODULE_NAME+"[UDPClient]Sending UDP Message :: "+messageStr + " to server :: " + this.host + ":" + ipAddress);
 
 		      sendData = messageStr.getBytes();
-		      DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, ipAddress, this.hostPort);
+		      DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, ipAddress, this.port);
 		      clientSocket.send(sendPacket);
 		      DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
 		      clientSocket.receive(receivePacket);
