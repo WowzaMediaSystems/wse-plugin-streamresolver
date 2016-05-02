@@ -89,9 +89,9 @@ public class UDPServer {
 			WMSLoggerFactory.getLogger(getClass()).info(ServerListenerLocateSourceStream.MODULE_NAME+".listenForRequests starting UDP Server loop on port "+this.port+" ..");
 
 			serverSocket = new DatagramSocket(this.port);
-			byte[] receiveData = new byte[1024];
-			byte[] sendData = new byte[1024];
 			while(true){
+				byte[] receiveData = new byte[1024];
+				byte[] sendData = new byte[1024];
 
 				DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
 				serverSocket.receive(receivePacket);

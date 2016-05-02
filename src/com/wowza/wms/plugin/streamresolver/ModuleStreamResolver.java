@@ -27,6 +27,7 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
 import com.wowza.util.StringUtils;
+import com.wowza.util.SystemUtils;
 import com.wowza.util.XMLUtils;
 import com.wowza.wms.application.IApplicationInstance;
 import com.wowza.wms.application.WMSProperties;
@@ -36,7 +37,10 @@ import com.wowza.wms.mediacaster.IMediaCaster;
 import com.wowza.wms.mediacaster.MediaCasterNotifyBase;
 import com.wowza.wms.mediacaster.wowza.LiveMediaStreamReceiver;
 import com.wowza.wms.module.ModuleBase;
+import com.wowza.wms.stream.IMediaReader;
 import com.wowza.wms.stream.IMediaStreamNameAliasProvider;
+import com.wowza.wms.stream.MediaStream;
+import com.wowza.wms.util.ModuleUtils;
 
 public class ModuleStreamResolver extends ModuleBase implements IMediaStreamNameAliasProvider
 {
@@ -66,12 +70,13 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 
 		if(appInstance.getProperties().containsKey(MODULE_PROPERTY_PREFIX + "ConfTargetPath")){
 			this.useExternalFile = true;
-			this.targetPath = appInstance.getProperties().getPropertyStr(MODULE_PROPERTY_PREFIX + "ConfTargetPath", null);
+			this.targetPath = appInstance.decodeStorageDir(appInstance.getProperties().getPropertyStr(MODULE_PROPERTY_PREFIX + "ConfTargetPath", null));
 		}
 
 		appInstance.setStreamNameAliasProvider(this);
 		appInstance.addMediaCasterListener(new MediaCasterListener());
 	}
+
 
 	private String getNewURLs(){
 		if(this.useExternalFile){
@@ -271,7 +276,18 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 	@Override
 	public String resolvePlayAlias(IApplicationInstance appInstance, String name)
 	{
-		return this.getStreamName(name);
+		String streamName = name;
+		String streamExt = MediaStream.BASE_STREAM_EXT;
+		if (streamName != null)
+		{
+			String[] streamDecode = ModuleUtils.decodeStreamExtension(streamName, streamExt);
+			streamName = streamDecode[0];
+			streamExt = streamDecode[1];
+
+			if(appInstance.getMediaReaderContentType(streamExt) == IMediaReader.CONTENTTYPE_MEDIALIST)
+				return name;
+		}
+		return this.getStreamName(streamName);
 	}
 
 	@Override
@@ -387,13 +403,11 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 			message.appInstance = appInstance;
 			message.appName = appName;
 
-			getLogger().info(MODULE_NAME + "[sendUDPMessage] sending::" + message.toString() + "::" + this.port);
-
 			String responseMessage = udp.send(message);
 
-			getLogger().info(MODULE_NAME + "[sendUDPMessage] returning::StreamRequest.sourceStream ::" + responseMessage);
+			getLogger().info(MODULE_NAME + "[sendUDPMessage] response from host :: " + this.host + " :: " + responseMessage);
 
-			if (responseMessage != null && responseMessage.length() > 0)
+			if (responseMessage != null && responseMessage.length() > 0 && !responseMessage.toLowerCase().startsWith("error"))
 			{
 				return responseMessage;
 			}
