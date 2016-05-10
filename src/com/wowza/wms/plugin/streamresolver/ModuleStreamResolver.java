@@ -27,7 +27,6 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
 import com.wowza.util.StringUtils;
-import com.wowza.util.SystemUtils;
 import com.wowza.util.XMLUtils;
 import com.wowza.wms.application.IApplicationInstance;
 import com.wowza.wms.application.WMSProperties;
