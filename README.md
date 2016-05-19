@@ -1,4 +1,4 @@
-# ModuleStreamResolver
+# StreamResolver
 The **ModuleStreamResolver** module for [Wowza Streaming Engine™ media server software](https://www.wowza.com/products/streaming-engine) enables edge servers in a live stream repeater (origin/edge) configuration to dynamically resolve client requests for streams to multiple origin servers.
 
 ## Prerequisites
@@ -14,7 +14,7 @@ When a client/player requests a stream from an edge server, the edge will first 
 
 Wowza Media Systems™ provides developers with a platform to create streaming applications and solutions. See [Wowza Developer Tools](https://www.wowza.com/resources/developers) to learn more about our APIs and SDK.
 
-To use the compiled version of this module, see [How to dynamically resolve edge server stream requests to origin servers (ModuleStreamResolver)](https://www.wowza.com/forums/content.php?815-How-to-dynamically-resolve-edge-server-stream-requests-to-origin-servers-%28ModuleStreamResolver%29).
+To use the compiled version of this module, see [How to dynamically resolve edge server stream requests to origin servers (StreamResolver)](https://www.wowza.com/forums/content.php?815-How-to-dynamically-resolve-edge-server-stream-requests-to-origin-servers-%28ModuleStreamResolver%29).
 
 ## Contact
 [Wowza Media Systems, LLC](https://www.wowza.com/contact)
