@@ -13,30 +13,33 @@ import java.util.List;
 import com.wowza.wms.application.IApplication;
 import com.wowza.wms.application.IApplicationInstance;
 import com.wowza.wms.logging.WMSLogger;
-import com.wowza.wms.logging.WMSLoggerFactory;
 import com.wowza.wms.mediacaster.MediaCasterStreamItem;
 import com.wowza.wms.stream.IMediaStream;
 import com.wowza.wms.vhost.IVHost;
 import com.wowza.wms.vhost.VHostSingleton;
 
-public class UDPServer {
+public class UDPServer
+{
 	private int port;
 	private WMSLogger logger;
 	private boolean debug = false;
 	private String publicHostName = "";
 
-	public UDPServer(int port,String host, WMSLogger logger, boolean debug){
+	public UDPServer(int port, String host, WMSLogger logger, boolean debug)
+	{
 		this.logger = logger;
 		this.port = port;
 		this.debug = debug;
-		this.publicHostName = host;
-		this.listenForRequests();
+		publicHostName = host;
+		listenForRequests();
 	}
 
-	private String getStreamOrigin(String requestedStreamName, String requestedAppName, String requestedAppInstanceName){
+	private String getStreamOrigin(String requestedStreamName, String requestedAppName, String requestedAppInstanceName)
+	{
 
-		if(this.debug){
-			this.logger.info(ServerListenerLocateSourceStream.MODULE_NAME+"[UDPServer] getStreamOrigin::"+requestedStreamName);
+		if (debug)
+		{
+			logger.info(ServerListenerLocateSourceStream.MODULE_NAME + "[UDPServer] getStreamOrigin::" + requestedStreamName);
 		}
 
 		@SuppressWarnings("unchecked")
@@ -50,26 +53,35 @@ public class UDPServer {
 				IVHost vhost = VHostSingleton.getInstance(vhostName);
 
 				IApplication application = vhost.getApplication(requestedAppName);
-				if(application != null){
+				if (application != null)
+				{
 
 					IApplicationInstance appInstance = application.getAppInstance(requestedAppInstanceName);
-					if(appInstance!=null){
-						if(appInstance.getMediaCasterStreams()!=null){
+					if (appInstance != null)
+					{
+						if (appInstance.getMediaCasterStreams() != null)
+						{
 							MediaCasterStreamItem item = appInstance.getMediaCasterStreams().getMediaCaster(requestedStreamName);
-							if(item != null && item.getMediaCaster() != null){
-								if(item.getMediaCaster().isStreamIsRunning()){
-									String server = this.publicHostName+"/"+requestedAppName+"/"+requestedAppInstanceName+"/"+requestedStreamName;
-									this.logger.info(ServerListenerLocateSourceStream.MODULE_NAME+"[UDPServer-Mediacaster] server::"+server);
+							if (item != null && item.getMediaCaster() != null)
+							{
+								if (item.getMediaCaster().isStreamIsRunning())
+								{
+									String server = publicHostName + "/" + requestedAppName + "/" + requestedAppInstanceName + "/" + requestedStreamName;
+									if (debug)
+										logger.info(ServerListenerLocateSourceStream.MODULE_NAME + "[UDPServer-Mediacaster] server::" + server);
 									return server;
 								}
 							}
 						}
 
-						if(appInstance.getStreams()!=null){
+						if (appInstance.getStreams() != null)
+						{
 							IMediaStream stream = appInstance.getStreams().getStream(requestedStreamName);
-							if(stream!=null){
-								String server = this.publicHostName+"/"+requestedAppName+"/"+requestedAppInstanceName+"/"+requestedStreamName;
-								this.logger.info(ServerListenerLocateSourceStream.MODULE_NAME+"[UDPServer] server::"+server);
+							if (stream != null)
+							{
+								String server = publicHostName + "/" + requestedAppName + "/" + requestedAppInstanceName + "/" + requestedStreamName;
+								if (debug)
+									logger.info(ServerListenerLocateSourceStream.MODULE_NAME + "[UDPServer] server::" + server);
 								return server;
 							}
 						}
@@ -80,40 +92,48 @@ public class UDPServer {
 		return "Error: Unable to locate Stream";
 	}
 
-	private void listenForRequests(){
+	private void listenForRequests()
+	{
 		DatagramSocket serverSocket = null;
-		try{
-			if(this.debug){
-				this.logger.info(ServerListenerLocateSourceStream.MODULE_NAME+"[UDPServer] listenForRequests on port "+this.port);
+		try
+		{
+			if (debug)
+			{
+				logger.info(ServerListenerLocateSourceStream.MODULE_NAME + "[UDPServer] listenForRequests on port " + port);
 			}
-			WMSLoggerFactory.getLogger(getClass()).info(ServerListenerLocateSourceStream.MODULE_NAME+".listenForRequests starting UDP Server loop on port "+this.port+" ..");
 
-			serverSocket = new DatagramSocket(this.port);
-			while(true){
+			serverSocket = new DatagramSocket(port);
+			while (true)
+			{
 				byte[] receiveData = new byte[1024];
 				byte[] sendData = new byte[1024];
 
 				DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
 				serverSocket.receive(receivePacket);
 				String message = new String(receivePacket.getData());
-				this.logger.info(ServerListenerLocateSourceStream.MODULE_NAME+"[UDPServer] listenForRequests::received message::"+message + " from server::" + receivePacket.getSocketAddress());
+				if (debug)
+					logger.info(ServerListenerLocateSourceStream.MODULE_NAME + "[UDPServer] listenForRequests::received message::" + message + " from server::" + receivePacket.getSocketAddress());
 
 				String responseString = "";
-				try{
+				try
+				{
 					String[] response = message.split("\\|");
-					if(response.length>=3){
+					if (response.length >= 3)
+					{
 						String requestedStreamName = response[2].trim();
 						String requestedAppName = response[0].trim();
 						String requestedAppInstanceName = response[1].trim();
 
-						responseString = this.getStreamOrigin(requestedStreamName, requestedAppName, requestedAppInstanceName);
+						responseString = getStreamOrigin(requestedStreamName, requestedAppName, requestedAppInstanceName);
 					}
 				}
-				catch(Exception ex){
-					this.logger.error(ServerListenerLocateSourceStream.MODULE_NAME+"[UDPServer] listenForRequests::JSON-Exception::"+ex.getMessage());
+				catch (Exception ex)
+				{
+					logger.error(ServerListenerLocateSourceStream.MODULE_NAME + "[UDPServer] listenForRequests::JSON-Exception::" + ex.getMessage(), ex);
 				}
 
-				try{
+				try
+				{
 					InetAddress IPAddress = receivePacket.getAddress();
 					int port = receivePacket.getPort();
 
@@ -121,15 +141,18 @@ public class UDPServer {
 
 					DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, port);
 					serverSocket.send(sendPacket);
-					this.logger.info(ServerListenerLocateSourceStream.MODULE_NAME+"[UDPServer] listenForRequests::responseString::"+responseString + " to server::" + receivePacket.getSocketAddress());
+					if (debug)
+						logger.info(ServerListenerLocateSourceStream.MODULE_NAME + "[UDPServer] listenForRequests::responseString::" + responseString + " to server::" + receivePacket.getSocketAddress());
 				}
-				catch(Exception ex){
-					this.logger.error(ServerListenerLocateSourceStream.MODULE_NAME+"[UDPServer] listenForRequests::IP-Exception::",ex);
+				catch (Exception ex)
+				{
+					logger.error(ServerListenerLocateSourceStream.MODULE_NAME + "[UDPServer] listenForRequests::IP-Exception::" + ex.getMessage(), ex);
 				}
 			}
 		}
-		catch(Exception ex){
-			this.logger.error(ServerListenerLocateSourceStream.MODULE_NAME+"[UDPServer] Exception::",ex);
+		catch (Exception ex)
+		{
+			logger.error(ServerListenerLocateSourceStream.MODULE_NAME + "[UDPServer] Exception::" + ex.getMessage(), ex);
 		}
-    }
+	}
 }

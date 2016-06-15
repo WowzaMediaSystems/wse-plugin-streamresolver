@@ -10,54 +10,62 @@ import java.net.InetAddress;
 
 import com.wowza.wms.logging.WMSLogger;
 
-public class UDPClient {
+public class UDPClient
+{
 	private String host;
 	private int port;
 	private WMSLogger logger;
 	private int timeout = 2000;
+	private boolean debug = false;
 
-	public UDPClient(String server, int port, WMSLogger logger){
-		this.host = server;
-		this.port = port;
-		this.logger = logger;
-	}
+//	public UDPClient(String server, int port, WMSLogger logger){
+//		this.host = server;
+//		this.port = port;
+//		this.logger = logger;
+//	}
 
-	public UDPClient(String server, int port, int timeout, WMSLogger logger){
-		this.host = server;
+	public UDPClient(String server, int port, int timeout, WMSLogger logger, boolean debug)
+	{
+		host = server;
 		this.port = port;
 		this.timeout = timeout;
 		this.logger = logger;
+		this.debug = debug;
 	}
 
-	public String send(Message message){
-			try{
-		      DatagramSocket clientSocket = new DatagramSocket();
-		      clientSocket.setSoTimeout(this.timeout);
+	public String send(Message message)
+	{
+		try
+		{
+			DatagramSocket clientSocket = new DatagramSocket();
+			clientSocket.setSoTimeout(timeout);
 
-		      InetAddress ipAddress = InetAddress.getByName(this.host);
+			InetAddress ipAddress = InetAddress.getByName(host);
 
-		      byte[] sendData = new byte[1024];
-		      byte[] receiveData = new byte[1024];
+			byte[] sendData = new byte[1024];
+			byte[] receiveData = new byte[1024];
 
-		      String messageStr = message.toString();
+			String messageStr = message.toString();
+			if (debug)
+				logger.info(ServerListenerLocateSourceStream.MODULE_NAME + "[UDPClient]Sending UDP Message :: " + messageStr + " to server :: " + host + ":" + ipAddress);
 
-		      this.logger.info(ServerListenerLocateSourceStream.MODULE_NAME+"[UDPClient]Sending UDP Message :: "+messageStr + " to server :: " + this.host + ":" + ipAddress);
+			sendData = messageStr.getBytes();
+			DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, ipAddress, port);
+			clientSocket.send(sendPacket);
+			DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
+			clientSocket.receive(receivePacket);
 
-		      sendData = messageStr.getBytes();
-		      DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, ipAddress, this.port);
-		      clientSocket.send(sendPacket);
-		      DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
-		      clientSocket.receive(receivePacket);
+			String responseString = new String(receivePacket.getData());
+			if (debug)
+				logger.info(ServerListenerLocateSourceStream.MODULE_NAME + "[UDPClient] FROM SERVER:" + responseString + " from server::" + receivePacket.getSocketAddress());
 
-		      String responseString = new String(receivePacket.getData());
-		      this.logger.info(ServerListenerLocateSourceStream.MODULE_NAME+"[UDPClient] FROM SERVER:" + responseString + " from server::" + receivePacket.getSocketAddress());
-
-		      clientSocket.close();
-		      return responseString;
-			}
-			catch(Exception ex){
-			      this.logger.info(ServerListenerLocateSourceStream.MODULE_NAME+"[UDPClient]Exception :" + ex.getMessage());
-			}
-			return null;
-	   }
+			clientSocket.close();
+			return responseString;
+		}
+		catch (Exception ex)
+		{
+			logger.error(ServerListenerLocateSourceStream.MODULE_NAME + "[UDPClient]Exception :" + ex.getMessage(), ex);
+		}
+		return null;
+	}
 }

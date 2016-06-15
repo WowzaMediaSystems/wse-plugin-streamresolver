@@ -31,6 +31,7 @@ import com.wowza.util.XMLUtils;
 import com.wowza.wms.application.IApplicationInstance;
 import com.wowza.wms.application.WMSProperties;
 import com.wowza.wms.bootstrap.Bootstrap;
+import com.wowza.wms.logging.WMSLogger;
 import com.wowza.wms.logging.WMSLoggerFactory;
 import com.wowza.wms.mediacaster.IMediaCaster;
 import com.wowza.wms.mediacaster.MediaCasterNotifyBase;
@@ -59,91 +60,115 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 	private boolean useExternalFile = false;
 	private long lastFileModification = 0L;
 	private String lastOriginSetting = "";
+	private WMSLogger logger = null;
+	private boolean debug = false;
 
 	public void onAppStart(IApplicationInstance appInstance)
 	{
 		this.appInstance = appInstance;
-		this.port = appInstance.getProperties().getPropertyInt(MODULE_PROPERTY_PREFIX + "UDPClientPort", _UDP_PORT);
-		this.timeout = appInstance.getProperties().getPropertyInt(MODULE_PROPERTY_PREFIX + "UDPClientTimeout", _UDP_REQUEST_TIMEOUT);
-		this.protocol = appInstance.getProperties().getPropertyStr(MODULE_PROPERTY_PREFIX + "Protocol", _PROTOCOL);
+		logger = WMSLoggerFactory.getLoggerObj(appInstance);
+		port = appInstance.getProperties().getPropertyInt(MODULE_PROPERTY_PREFIX + "UDPClientPort", _UDP_PORT);
+		timeout = appInstance.getProperties().getPropertyInt(MODULE_PROPERTY_PREFIX + "UDPClientTimeout", _UDP_REQUEST_TIMEOUT);
+		protocol = appInstance.getProperties().getPropertyStr(MODULE_PROPERTY_PREFIX + "Protocol", _PROTOCOL);
+		debug = appInstance.getProperties().getPropertyBoolean(MODULE_PROPERTY_PREFIX + "DebugLog", debug);
+		debug = logger.isDebugEnabled();
 
-		if(appInstance.getProperties().containsKey(MODULE_PROPERTY_PREFIX + "ConfTargetPath")){
-			this.useExternalFile = true;
-			this.targetPath = appInstance.decodeStorageDir(appInstance.getProperties().getPropertyStr(MODULE_PROPERTY_PREFIX + "ConfTargetPath", null));
+		if (appInstance.getProperties().containsKey(MODULE_PROPERTY_PREFIX + "ConfTargetPath"))
+		{
+			useExternalFile = true;
+			targetPath = appInstance.decodeStorageDir(appInstance.getProperties().getPropertyStr(MODULE_PROPERTY_PREFIX + "ConfTargetPath", null));
 		}
 
 		appInstance.setStreamNameAliasProvider(this);
 		appInstance.addMediaCasterListener(new MediaCasterListener());
 	}
 
-
-	private String getNewURLs(){
-		if(this.useExternalFile){
-			return this.getNewURLsFromConfig();
+	private String getNewURLs()
+	{
+		if (useExternalFile)
+		{
+			return getNewURLsFromConfig();
 		}
-		return this.getNewPropertyURLs();
+		return getNewPropertyURLs();
 	}
 
-	private String getNewURLsFromConfig(){
+	private String getNewURLsFromConfig()
+	{
 		long lastModified = 0L;
 
-		try{
-			if(this.targetPath == null || this.targetPath.isEmpty()){
-				getLogger().error(ModuleStreamResolver.MODULE_NAME+".getNewURLsFromConfig could not find valid target file "+this.targetPath);
+		try
+		{
+			if (targetPath == null || targetPath.isEmpty())
+			{
+				logger.error(ModuleStreamResolver.MODULE_NAME + ".getNewURLsFromConfig could not find valid target file " + targetPath);
 				return null;
 			}
 
-			File checkForFile = new File(this.targetPath);
-			if(!checkForFile.exists()){
-				getLogger().error(ModuleStreamResolver.MODULE_NAME+".getNewURLsFromConfig could not find valid target file "+this.targetPath);
+			File checkForFile = new File(targetPath);
+			if (!checkForFile.exists())
+			{
+				logger.error(ModuleStreamResolver.MODULE_NAME + ".getNewURLsFromConfig could not find valid target file " + targetPath);
 				return null;
 			}
 
 			lastModified = checkForFile.lastModified();
-			if(lastFileModification!= 0L && lastFileModification == lastModified){
+			if (lastFileModification != 0L && lastFileModification == lastModified)
+			{
 				return lastOriginSetting;
 			}
 		}
-		catch(Exception ex){
-			getLogger().error(ModuleStreamResolver.MODULE_NAME+".getNewURLsFromConfig Exception",ex);
+		catch (Exception ex)
+		{
+			logger.error(ModuleStreamResolver.MODULE_NAME + ".getNewURLsFromConfig Exception", ex);
 			return null;
 		}
 
 		String urls = "";
 		FileInputStream in = null;
 		BufferedReader br = null;
-		try {
-			in = new FileInputStream(this.targetPath);
+		try
+		{
+			in = new FileInputStream(targetPath);
 			br = new BufferedReader(new InputStreamReader(in));
 			String urlItem = "";
 
-			while ((urlItem = br.readLine()) != null) {
+			while ((urlItem = br.readLine()) != null)
+			{
 				urlItem = urlItem.trim();
-				if (!urlItem.startsWith("#") && urlItem.length() > 0) {
-					urls+=urlItem+",";
+				if (!urlItem.startsWith("#") && urlItem.length() > 0)
+				{
+					urls += urlItem + ",";
 				}
 			}
-			urls = urls.replaceAll("[\\,\\s]+$","");
+			urls = urls.replaceAll("[\\,\\s]+$", "");
 		}
-		catch (Exception e) {
-			getLogger().info(ModuleStreamResolver.MODULE_NAME+".getNewURLsFromConfig Exception",e);
+		catch (Exception e)
+		{
+			logger.info(ModuleStreamResolver.MODULE_NAME + ".getNewURLsFromConfig Exception", e);
 		}
-		finally {
-			try {
-				if(br != null)
+		finally
+		{
+			try
+			{
+				if (br != null)
 					br.close();
-			} catch (IOException e) {
+			}
+			catch (IOException e)
+			{
 			}
 			br = null;
-			try {
-				if(in != null)
+			try
+			{
+				if (in != null)
 					in.close();
-			} catch (IOException e) {
+			}
+			catch (IOException e)
+			{
 			}
 			in = null;
 		}
 
-		getLogger().error(ModuleStreamResolver.MODULE_NAME+".getNewURLsFromConfig "+urls);
+		logger.info(ModuleStreamResolver.MODULE_NAME + ".getNewURLsFromConfig " + urls);
 		lastFileModification = lastModified;
 		lastOriginSetting = urls;
 
@@ -154,7 +179,7 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 	{
 
 		String fileURL = Bootstrap.getServerHome(Bootstrap.CONFIGHOME) + "/conf/" + appInstance.getApplication().getName() + "/Application.xml";
-		WMSLoggerFactory.getLogger(getClass()).error(MODULE_NAME + "getNewURLs: fileURL " + fileURL);
+		logger.error(MODULE_NAME + "getNewURLs: fileURL " + fileURL);
 
 		if (fileURL != null)
 		{
@@ -180,7 +205,7 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 			}
 			catch (Exception e)
 			{
-				WMSLoggerFactory.getLogger(getClass()).error(MODULE_NAME + "getNewURLs: error parsing app config file: (" + fileURL + ")", e);
+				logger.error(MODULE_NAME + "getNewURLs: error parsing app config file: (" + fileURL + ")", e);
 			}
 		}
 
@@ -194,9 +219,10 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 		final CompletionService<String> ecs = new ExecutorCompletionService<String>(Executors.newCachedThreadPool());
 		final List<String> originUrls = new ArrayList<String>();
 
-		String hostNames = this.getNewURLs();
+		String hostNames = getNewURLs();
 
-		getLogger().info("**Checking hostnames ... "+hostNames);
+		if (debug)
+			logger.info("**Checking hostnames ... " + hostNames);
 
 		String applicationName = appInstance.getProperties().getPropertyStr(MODULE_PROPERTY_PREFIX + "OriginApplicationName", appInstance.getApplication().getName());
 		String applicationInstanceName = appInstance.getProperties().getPropertyStr(MODULE_PROPERTY_PREFIX + "OriginApplicationInstanceName", appInstance.getName());
@@ -283,52 +309,61 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 			streamName = streamDecode[0];
 			streamExt = streamDecode[1];
 
-			if(appInstance.getMediaReaderContentType(streamExt) == IMediaReader.CONTENTTYPE_MEDIALIST)
+			if (appInstance.getMediaReaderContentType(streamExt) == IMediaReader.CONTENTTYPE_MEDIALIST)
 				return name;
 		}
-		return this.getStreamName(streamName);
+		return getStreamName(streamName);
 	}
 
 	@Override
 	public String resolveStreamAlias(IApplicationInstance appInstance, String name)
 	{
-		return this.getOriginURLs(name);
+		return getOriginURLs(name);
 	}
 
-	private String getStreamName(String name){
+	private String getStreamName(String name)
+	{
 
 		if (appInstance.getStreams().getStream(name) == null)
 		{
-			if (!isStreamAvaliable(name)){
-				getLogger().info(ModuleStreamResolver.MODULE_NAME+".getStreamName() stream not available");
+			if (!isStreamAvaliable(name))
+			{
+				if (debug)
+					logger.warn(ModuleStreamResolver.MODULE_NAME + ".getStreamName() stream not available");
 				return null;
 			}
 		}
-		getLogger().info(ModuleStreamResolver.MODULE_NAME+".getStreamName["+name+"] ");
+		if (debug)
+			logger.info(ModuleStreamResolver.MODULE_NAME + ".getStreamName[" + name + "] ");
 		return name;
 	}
 
-	private String getOriginURLs(String name){
+	private String getOriginURLs(String name)
+	{
 		String ret = "";
 		synchronized(lock)
 		{
 			List<String> originUrls = urls.get(name);
-			if(originUrls!=null){
+			if (originUrls != null)
+			{
 				for (int i = 0; i < originUrls.size(); i++)
 				{
-					if (i >= 1){
+					if (i >= 1)
+					{
 						ret += "|";
 					}
 					String url = originUrls.get(i);
-					if(!url.startsWith("rtmp") && !url.startsWith("wowz")){
-						url = this.protocol+"://"+url;
+					if (!url.startsWith("rtmp") && !url.startsWith("wowz"))
+					{
+						url = protocol + "://" + url;
 						url = url.trim();
 					}
 					ret += url;
 				}
 			}
 		}
-		getLogger().info(ModuleStreamResolver.MODULE_NAME+".getOriginURLs "+ret);
+		if (debug)
+			logger.info(ModuleStreamResolver.MODULE_NAME + ".getOriginURLs " + ret);
 		return ret;
 	}
 
@@ -340,7 +375,8 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 			String name = mediaCaster.getMediaCasterId();
 			if (mediaCaster instanceof LiveMediaStreamReceiver)
 			{
-				getLogger().info(ModuleStreamResolver.MODULE_NAME+"**Resolving stream name: "+mediaCaster.getStream().getName());
+				if (debug)
+					logger.info(ModuleStreamResolver.MODULE_NAME + "**Resolving stream name: " + mediaCaster.getStream().getName());
 				((LiveMediaStreamReceiver)mediaCaster).resolveURL();
 				synchronized(lock)
 				{
@@ -386,10 +422,11 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 
 		private String sendUDPMessage()
 		{
-			getLogger().info(MODULE_NAME + "[sendUDPMessage] this.host:: "+this.host+" :: this.port :: " + this.port);
-			UDPClient udp = new UDPClient(this.host, this.port, this.udpTimeout, WMSLoggerFactory.getLogger(getClass()));
+			if (debug)
+				logger.info(MODULE_NAME + "[sendUDPMessage] this.host:: " + host + " :: this.port :: " + port);
+			UDPClient udp = new UDPClient(host, port, udpTimeout, logger, debug);
 
-			String remoteStreamName = this.streamName;
+			String remoteStreamName = streamName;
 
 			if (remoteStreamName.contains("/"))
 			{
@@ -404,7 +441,8 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 
 			String responseMessage = udp.send(message);
 
-			getLogger().info(MODULE_NAME + "[sendUDPMessage] response from host :: " + this.host + " :: " + responseMessage);
+			if (debug)
+				logger.info(MODULE_NAME + "[sendUDPMessage] response from host :: " + host + " :: " + responseMessage);
 
 			if (responseMessage != null && responseMessage.length() > 0 && !responseMessage.toLowerCase().startsWith("error"))
 			{

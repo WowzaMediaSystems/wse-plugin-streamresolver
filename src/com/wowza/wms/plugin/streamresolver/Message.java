@@ -4,12 +4,15 @@
  */
 package com.wowza.wms.plugin.streamresolver;
 
-public class Message {
-	public String streamName="";
-	public String appName="";
-	public String appInstance="";
+public class Message
+{
+	public String streamName = "";
+	public String appName = "";
+	public String appInstance = "";
 
-	public String toString(){
-		return this.appName+"|"+this.appInstance+"|"+this.streamName;
+	@Override
+	public String toString()
+	{
+		return appName + "|" + appInstance + "|" + streamName;
 	}
 }
