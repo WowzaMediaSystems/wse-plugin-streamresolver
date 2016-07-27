@@ -21,3 +21,5 @@ To use the compiled version of this module, see [How to dynamically resolve edge
 
 ## License
 This code is distributed under the [Wowza Public License](https://github.com/WowzaMediaSystems/wse-plugin-streamresolver/blob/master/LICENSE.txt).
+
+![alt tag](http://wowzalogs.com/stats/githubimage.php?plugin=wse-plugin-streamresolver)
