@@ -14,7 +14,7 @@ public class ServerListenerLocateSourceStream implements IServerNotify2
 	public static String MODULE_PROPERTY_PREFIX = "wowzaSourceStream";
 	private static final int _UDP_PORT = 9777;
 	private static final String _HOSTNAME = null;
-	private static final boolean _DEBUG = true;
+	private static final boolean _DEBUG = false;
 	private Thread udpListenerThread;
 
 	@Override
@@ -30,7 +30,8 @@ public class ServerListenerLocateSourceStream implements IServerNotify2
 		{
 			WMSLoggerFactory.getLogger(getClass()).info(MODULE_NAME + ".onServerInit starting up server listener..");
 			boolean debug = server.getProperties().getPropertyBoolean(MODULE_PROPERTY_PREFIX + "UDPListenerDebug", ServerListenerLocateSourceStream._DEBUG);
-			debug = WMSLoggerFactory.getLogger(getClass()).isDebugEnabled();
+			if(WMSLoggerFactory.getLogger(getClass()).isDebugEnabled())
+				debug = true;
 			int udpPort = server.getProperties().getPropertyInt(MODULE_PROPERTY_PREFIX + "UDPListenerPort", ServerListenerLocateSourceStream._UDP_PORT);
 			String publicHostName = server.getProperties().getPropertyStr(MODULE_PROPERTY_PREFIX + "HostName", ServerListenerLocateSourceStream._HOSTNAME);
 

@@ -71,7 +71,8 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 		timeout = appInstance.getProperties().getPropertyInt(MODULE_PROPERTY_PREFIX + "UDPClientTimeout", _UDP_REQUEST_TIMEOUT);
 		protocol = appInstance.getProperties().getPropertyStr(MODULE_PROPERTY_PREFIX + "Protocol", _PROTOCOL);
 		debug = appInstance.getProperties().getPropertyBoolean(MODULE_PROPERTY_PREFIX + "DebugLog", debug);
-		debug = logger.isDebugEnabled();
+		if(logger.isDebugEnabled())
+			debug = true;;
 
 		if (appInstance.getProperties().containsKey(MODULE_PROPERTY_PREFIX + "ConfTargetPath"))
 		{
