@@ -44,14 +44,141 @@ import com.wowza.wms.util.ModuleUtils;
 
 public class ModuleStreamResolver extends ModuleBase implements IMediaStreamNameAliasProvider
 {
+	private class MediaCasterListener extends MediaCasterNotifyBase
+	{
+		@Override
+		public void onConnectStart(IMediaCaster mediaCaster)
+		{
+			String name = mediaCaster.getMediaCasterId();
+			if (mediaCaster instanceof LiveMediaStreamReceiver)
+			{
+				if (debug)
+					logger.info(ModuleStreamResolver.MODULE_NAME + "**Resolving stream name: " + mediaCaster.getStream().getName());
+
+				long lastReset = mediaCaster.getStreamTimeoutLastReset();
+				long lastSuccess = mediaCaster.getConnectLastSuccess();
+				int lastIdx = ((LiveMediaStreamReceiver)mediaCaster).getLiveMediaStreamURLIndex();
+
+				if (lastReset > lastSuccess && lastIdx == 0)
+				{
+					mediaCaster.shutdown(false);
+				}
+				else
+				{
+					((LiveMediaStreamReceiver)mediaCaster).resolveURL();
+					synchronized(urls)
+					{
+						int idx = ((LiveMediaStreamReceiver)mediaCaster).getLiveMediaStreamURLIndex();
+						List<String> originList = urls.get(name);
+						if (originList != null && !originList.isEmpty())
+						{
+							((LiveMediaStreamReceiver)mediaCaster).setLiveMediaStreamURLIndex(idx % originList.size());
+						}
+					}
+				}
+			}
+		}
+
+		@Override
+		public void onConnectFailure(IMediaCaster mediaCaster)
+		{
+			String name = mediaCaster.getMediaCasterId();
+			if (mediaCaster instanceof LiveMediaStreamReceiver)
+			{
+				synchronized(urls)
+				{
+					int idx = ((LiveMediaStreamReceiver)mediaCaster).getLiveMediaStreamURLIndex();
+					List<String> originList = urls.get(name);
+					if (originList != null && !originList.isEmpty())
+					{
+						idx++;
+						idx %= originList.size();
+					}
+					if (idx == 0)
+					{
+						mediaCaster.shutdown(false);
+					}
+				}
+			}
+		}
+
+		@Override
+		public void onMediaCasterDestroy(IMediaCaster mediaCaster)
+		{
+			String name = mediaCaster.getMediaCasterId();
+			synchronized(urls)
+			{
+				urls.remove(name);
+			}
+		}
+
+	}
+
+	private class StreamRequest implements Callable<String>
+	{
+		private String appName;
+		private String appInstance;
+		private String streamName;
+		private String host;
+		private int port;
+		private int udpTimeout;
+
+		public StreamRequest(String host, String streamName, String appInstance, String appName, int port, int udpTimeout)
+		{
+			this.streamName = streamName;
+			this.appInstance = appInstance;
+			this.appName = appName;
+			this.port = port;
+			this.udpTimeout = udpTimeout;
+			this.host = host;
+		}
+
+		private String sendUDPMessage()
+		{
+			if (debug)
+				logger.info(MODULE_NAME + "[sendUDPMessage] this.host:: " + host + " :: this.port :: " + port);
+			UDPClient udp = new UDPClient(host, port, udpTimeout, logger, debug);
+
+			String remoteStreamName = streamName;
+
+			if (remoteStreamName.contains("/"))
+			{
+				String[] parts = remoteStreamName.split("/");
+				remoteStreamName = parts[parts.length - 1].trim();
+			}
+
+			Message message = new Message();
+			message.streamName = remoteStreamName;
+			message.appInstance = appInstance;
+			message.appName = appName;
+
+			String responseMessage = udp.send(message);
+
+			if (debug)
+				logger.info(MODULE_NAME + "[sendUDPMessage] response from host :: " + host + " :: " + responseMessage);
+
+			if (responseMessage != null && responseMessage.length() > 0 && !responseMessage.toLowerCase().startsWith("error"))
+			{
+				return responseMessage;
+			}
+			return null;
+		}
+
+		@Override
+		public String call() throws Exception
+		{
+			return sendUDPMessage();
+		}
+	}
+
 	public static String MODULE_NAME = "ModuleStreamResolver";
 	public static String MODULE_PROPERTY_PREFIX = "wowzaResolver";
 	private static final int _UDP_PORT = 9777;
 	private static final int _UDP_REQUEST_TIMEOUT = 2000;
 	private static final String _PROTOCOL = "rtmp";
 
+	private Map<String, List<String>> lookups = new HashMap<String, List<String>>();
 	private Map<String, List<String>> urls = new HashMap<String, List<String>>();
-	private Object lock = new Object();
 	private int port;
 	private int timeout;
 	private String protocol = "";
@@ -71,8 +198,9 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 		timeout = appInstance.getProperties().getPropertyInt(MODULE_PROPERTY_PREFIX + "UDPClientTimeout", _UDP_REQUEST_TIMEOUT);
 		protocol = appInstance.getProperties().getPropertyStr(MODULE_PROPERTY_PREFIX + "Protocol", _PROTOCOL);
 		debug = appInstance.getProperties().getPropertyBoolean(MODULE_PROPERTY_PREFIX + "DebugLog", debug);
-		if(logger.isDebugEnabled())
-			debug = true;;
+		if (logger.isDebugEnabled())
+			debug = true;
+		;
 
 		if (appInstance.getProperties().containsKey(MODULE_PROPERTY_PREFIX + "ConfTargetPath"))
 		{
@@ -213,12 +341,11 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 		return appInstance.getProperties().getPropertyStr(MODULE_PROPERTY_PREFIX + "OriginServers", null);
 	}
 
-	private boolean isStreamAvaliable(final String name)
+	private boolean isStreamAvailable(final String name, final List<String> originList)
 	{
 		boolean available = false;
 		final List<Future<String>> futures = new ArrayList<Future<String>>();
 		final CompletionService<String> ecs = new ExecutorCompletionService<String>(Executors.newCachedThreadPool());
-		final List<String> originUrls = new ArrayList<String>();
 
 		String hostNames = getNewURLs();
 
@@ -246,10 +373,14 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 					String url = result.get();
 					if (url != null)
 					{
-						synchronized(lock)
+						synchronized(originList)
 						{
-							originUrls.add(url);
-							urls.put(name, originUrls);
+							originList.add(url);
+						}
+						synchronized(urls)
+						{
+							lookups.remove(originList);
+							urls.put(name, originList);
 						}
 						available = true;
 						break;
@@ -280,9 +411,9 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 									String url = result.get();
 									if (url != null)
 									{
-										synchronized(lock)
+										synchronized(originList)
 										{
-											originUrls.add(url);
+											originList.add(url);
 										}
 									}
 								}
@@ -293,6 +424,10 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 							}
 						}
 					});
+				}
+				synchronized(originList)
+				{
+					originList.notifyAll();
 				}
 			}
 		}
@@ -324,10 +459,48 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 
 	private String getStreamName(String name)
 	{
+		List<String> originList = null;
+		boolean newLookup = false;
 
-		if (appInstance.getStreams().getStream(name) == null)
+		synchronized(urls)
 		{
-			if (!isStreamAvaliable(name))
+			originList = urls.get(name);
+			if (originList != null)
+				return name;
+
+			originList = lookups.get(name);
+			if (originList == null)
+			{
+				originList = new ArrayList<String>();
+				lookups.put(name, originList);
+				newLookup = true;
+			}
+		}
+
+		if (!newLookup)
+		{
+			synchronized(originList)
+			{
+				try
+				{
+					originList.wait();
+				}
+				catch (InterruptedException e)
+				{
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+		}
+		else
+		{
+			if (!isStreamAvailable(name, originList))
+				return null;
+		}
+
+		synchronized(originList)
+		{
+			if (originList.isEmpty())
 			{
 				if (debug)
 					logger.warn(ModuleStreamResolver.MODULE_NAME + ".getStreamName() stream not available");
@@ -342,120 +515,38 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 	private String getOriginURLs(String name)
 	{
 		String ret = "";
-		synchronized(lock)
+		List<String> originList = null;
+		List<String> originListCopy = new ArrayList<String>();
+		synchronized(urls)
 		{
-			List<String> originUrls = urls.get(name);
-			if (originUrls != null)
+			originList = urls.get(name);
+		}
+		if (originList != null)
+		{
+			synchronized(originList)
 			{
-				for (int i = 0; i < originUrls.size(); i++)
+				originListCopy.addAll(originList);
+			}
+		}
+		if (originListCopy.isEmpty())
+		{
+			for (int i = 0; i < originListCopy.size(); i++)
+			{
+				if (i >= 1)
 				{
-					if (i >= 1)
-					{
-						ret += "|";
-					}
-					String url = originUrls.get(i);
-					if (!url.startsWith("rtmp") && !url.startsWith("wowz"))
-					{
-						url = protocol + "://" + url;
-						url = url.trim();
-					}
-					ret += url;
+					ret += "|";
 				}
+				String url = originListCopy.get(i);
+				if (!url.startsWith("rtmp") && !url.startsWith("wowz"))
+				{
+					url = protocol + "://" + url;
+					url = url.trim();
+				}
+				ret += url;
 			}
 		}
 		if (debug)
 			logger.info(ModuleStreamResolver.MODULE_NAME + ".getOriginURLs " + ret);
 		return ret;
-	}
-
-	private class MediaCasterListener extends MediaCasterNotifyBase
-	{
-		@Override
-		public void onConnectStart(IMediaCaster mediaCaster)
-		{
-			String name = mediaCaster.getMediaCasterId();
-			if (mediaCaster instanceof LiveMediaStreamReceiver)
-			{
-				if (debug)
-					logger.info(ModuleStreamResolver.MODULE_NAME + "**Resolving stream name: " + mediaCaster.getStream().getName());
-				((LiveMediaStreamReceiver)mediaCaster).resolveURL();
-				synchronized(lock)
-				{
-					int idx = ((LiveMediaStreamReceiver)mediaCaster).getLiveMediaStreamURLIndex();
-					List<String> originUrls = urls.get(name);
-					if (originUrls != null && !originUrls.isEmpty())
-					{
-						((LiveMediaStreamReceiver)mediaCaster).setLiveMediaStreamURLIndex(idx % originUrls.size());
-					}
-				}
-			}
-		}
-
-		@Override
-		public void onMediaCasterDestroy(IMediaCaster mediaCaster)
-		{
-			String name = mediaCaster.getMediaCasterId();
-			synchronized(lock)
-			{
-				urls.remove(name);
-			}
-		}
-	}
-
-	private class StreamRequest implements Callable<String>
-	{
-		private String appName;
-		private String appInstance;
-		private String streamName;
-		private String host;
-		private int port;
-		private int udpTimeout;
-
-		public StreamRequest(String host, String streamName, String appInstance, String appName, int port, int udpTimeout)
-		{
-			this.streamName = streamName;
-			this.appInstance = appInstance;
-			this.appName = appName;
-			this.port = port;
-			this.udpTimeout = udpTimeout;
-			this.host = host;
-		}
-
-		private String sendUDPMessage()
-		{
-			if (debug)
-				logger.info(MODULE_NAME + "[sendUDPMessage] this.host:: " + host + " :: this.port :: " + port);
-			UDPClient udp = new UDPClient(host, port, udpTimeout, logger, debug);
-
-			String remoteStreamName = streamName;
-
-			if (remoteStreamName.contains("/"))
-			{
-				String[] parts = remoteStreamName.split("/");
-				remoteStreamName = parts[parts.length - 1].trim();
-			}
-
-			Message message = new Message();
-			message.streamName = remoteStreamName;
-			message.appInstance = appInstance;
-			message.appName = appName;
-
-			String responseMessage = udp.send(message);
-
-			if (debug)
-				logger.info(MODULE_NAME + "[sendUDPMessage] response from host :: " + host + " :: " + responseMessage);
-
-			if (responseMessage != null && responseMessage.length() > 0 && !responseMessage.toLowerCase().startsWith("error"))
-			{
-				return responseMessage;
-			}
-			return null;
-		}
-
-		@Override
-		public String call() throws Exception
-		{
-			return sendUDPMessage();
-		}
 	}
 }
