@@ -72,7 +72,7 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 		protocol = appInstance.getProperties().getPropertyStr(MODULE_PROPERTY_PREFIX + "Protocol", _PROTOCOL);
 		debug = appInstance.getProperties().getPropertyBoolean(MODULE_PROPERTY_PREFIX + "DebugLog", debug);
 		if(logger.isDebugEnabled())
-			debug = true;;
+			debug = true;
 
 		if (appInstance.getProperties().containsKey(MODULE_PROPERTY_PREFIX + "ConfTargetPath"))
 		{
@@ -180,7 +180,10 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 	{
 
 		String fileURL = Bootstrap.getServerHome(Bootstrap.CONFIGHOME) + "/conf/" + appInstance.getApplication().getName() + "/Application.xml";
-		logger.error(MODULE_NAME + "getNewURLs: fileURL " + fileURL);
+        
+        if (debug){
+            logger.info(MODULE_NAME + ".getNewURLs: fileURL " + fileURL);
+        }
 
 		if (fileURL != null)
 		{
