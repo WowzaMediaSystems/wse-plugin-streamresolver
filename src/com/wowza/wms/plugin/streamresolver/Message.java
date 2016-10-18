@@ -9,10 +9,11 @@ public class Message
 	public String streamName = "";
 	public String appName = "";
 	public String appInstance = "";
+	public String packetizer = "";
 
 	@Override
 	public String toString()
 	{
-		return appName + "|" + appInstance + "|" + streamName;
+		return "{streamName: \"" + streamName + "\", appName: \"" + appName + "\", appInstanceName: \"" + appInstance + "\", packetizerName: \"" + packetizer + "\"}";
 	}
 }

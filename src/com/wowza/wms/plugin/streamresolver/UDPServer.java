@@ -10,11 +10,12 @@ import java.net.InetAddress;
 import java.util.Iterator;
 import java.util.List;
 
+import com.wowza.util.JSON;
+import com.wowza.util.StringUtils;
 import com.wowza.wms.application.IApplication;
 import com.wowza.wms.application.IApplicationInstance;
 import com.wowza.wms.logging.WMSLogger;
-import com.wowza.wms.mediacaster.MediaCasterStreamItem;
-import com.wowza.wms.stream.IMediaStream;
+import com.wowza.wms.stream.MediaStreamMap;
 import com.wowza.wms.vhost.IVHost;
 import com.wowza.wms.vhost.VHostSingleton;
 
@@ -34,12 +35,16 @@ public class UDPServer
 		listenForRequests();
 	}
 
-	private String getStreamOrigin(String requestedStreamName, String requestedAppName, String requestedAppInstanceName)
+	private String getStreamOrigin(String streamName, String appName, String appInstanceName, String packetizer)
 	{
+		/*
+		 * returns json object
+		 * {server: "192.168.1.50/live/_definst_/myStream"}
+		 */
 
 		if (debug)
 		{
-			logger.info(ServerListenerLocateSourceStream.MODULE_NAME + "[UDPServer] getStreamOrigin::" + requestedStreamName);
+			logger.info(ServerListenerLocateSourceStream.MODULE_NAME + "[UDPServer] getStreamOrigin::" + streamName);
 		}
 
 		@SuppressWarnings("unchecked")
@@ -52,44 +57,26 @@ public class UDPServer
 				String vhostName = vhostIterator.next();
 				IVHost vhost = VHostSingleton.getInstance(vhostName);
 
-				IApplication application = vhost.getApplication(requestedAppName);
+				IApplication application = vhost.getApplication(appName);
 				if (application != null)
 				{
-
-					IApplicationInstance appInstance = application.getAppInstance(requestedAppInstanceName);
+					IApplicationInstance appInstance = application.getAppInstance(appInstanceName);
 					if (appInstance != null)
 					{
-						if (appInstance.getMediaCasterStreams() != null)
+						MediaStreamMap streams = appInstance.getStreams();
+						if ((!StringUtils.isEmpty(packetizer) && streams.getLiveStreamPacketizer(streamName, packetizer, false) != null) || streams.getStream(streamName) != null)
 						{
-							MediaCasterStreamItem item = appInstance.getMediaCasterStreams().getMediaCaster(requestedStreamName);
-							if (item != null && item.getMediaCaster() != null)
-							{
-								if (item.getMediaCaster().isStreamIsRunning())
-								{
-									String server = publicHostName + "/" + requestedAppName + "/" + requestedAppInstanceName + "/" + requestedStreamName;
-									if (debug)
-										logger.info(ServerListenerLocateSourceStream.MODULE_NAME + "[UDPServer-Mediacaster] server::" + server);
-									return server;
-								}
-							}
-						}
+							String server = "{server: \"" + publicHostName + "/" + appName + "/" + appInstanceName + "/" + streamName + "\"}";
 
-						if (appInstance.getStreams() != null)
-						{
-							IMediaStream stream = appInstance.getStreams().getStream(requestedStreamName);
-							if (stream != null)
-							{
-								String server = publicHostName + "/" + requestedAppName + "/" + requestedAppInstanceName + "/" + requestedStreamName;
-								if (debug)
-									logger.info(ServerListenerLocateSourceStream.MODULE_NAME + "[UDPServer] server::" + server);
-								return server;
-							}
+							if (debug)
+								logger.info(ServerListenerLocateSourceStream.MODULE_NAME + "[UDPServer] server::" + server);
+							return server;
 						}
 					}
 				}
 			}
 		}
-		return "Error: Unable to locate Stream";
+		return "{error: \"Unable to locate Stream\"}";
 	}
 
 	private void listenForRequests()
@@ -117,14 +104,15 @@ public class UDPServer
 				String responseString = "";
 				try
 				{
-					String[] response = message.split("\\|");
-					if (response.length >= 3)
+					JSON json = new JSON(message);
+					if (json != null)
 					{
-						String requestedStreamName = response[2].trim();
-						String requestedAppName = response[0].trim();
-						String requestedAppInstanceName = response[1].trim();
+						String streamName = json.getString("streamName");
+						String appName = json.getString("appName");
+						String appInstanceName = json.getString("appInstanceName");
+						String packetizer = json.getString("packetizerName", "");
 
-						responseString = getStreamOrigin(requestedStreamName, requestedAppName, requestedAppInstanceName);
+						responseString = getStreamOrigin(streamName, appName, appInstanceName, packetizer);
 					}
 				}
 				catch (Exception ex)

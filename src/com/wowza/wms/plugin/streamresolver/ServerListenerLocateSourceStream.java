@@ -30,7 +30,7 @@ public class ServerListenerLocateSourceStream implements IServerNotify2
 		{
 			WMSLoggerFactory.getLogger(getClass()).info(MODULE_NAME + ".onServerInit starting up server listener..");
 			boolean debug = server.getProperties().getPropertyBoolean(MODULE_PROPERTY_PREFIX + "UDPListenerDebug", ServerListenerLocateSourceStream._DEBUG);
-			if(WMSLoggerFactory.getLogger(getClass()).isDebugEnabled())
+			if (WMSLoggerFactory.getLogger(getClass()).isDebugEnabled())
 				debug = true;
 			int udpPort = server.getProperties().getPropertyInt(MODULE_PROPERTY_PREFIX + "UDPListenerPort", ServerListenerLocateSourceStream._UDP_PORT);
 			String publicHostName = server.getProperties().getPropertyStr(MODULE_PROPERTY_PREFIX + "HostName", ServerListenerLocateSourceStream._HOSTNAME);
