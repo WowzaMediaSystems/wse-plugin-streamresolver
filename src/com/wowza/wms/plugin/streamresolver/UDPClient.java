@@ -7,6 +7,8 @@ package com.wowza.wms.plugin.streamresolver;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.SocketException;
+import java.net.SocketTimeoutException;
 
 import com.wowza.wms.logging.WMSLogger;
 
@@ -35,9 +37,10 @@ public class UDPClient
 
 	public String send(Message message)
 	{
+		DatagramSocket clientSocket = null;
 		try
 		{
-			DatagramSocket clientSocket = new DatagramSocket();
+			clientSocket = new DatagramSocket();
 			clientSocket.setSoTimeout(timeout);
 
 			InetAddress ipAddress = InetAddress.getByName(host);
@@ -59,12 +62,24 @@ public class UDPClient
 			if (debug)
 				logger.info(ServerListenerLocateSourceStream.MODULE_NAME + "[UDPClient] FROM SERVER:" + responseString + " from server::" + receivePacket.getSocketAddress());
 
-			clientSocket.close();
 			return responseString;
+		}
+		catch (SocketTimeoutException ste)
+		{
+			logger.warn(ServerListenerLocateSourceStream.MODULE_NAME + "[UDPClient] timeout connecting to server :" + host);
+		}
+		catch (SocketException se)
+		{
+			logger.warn(ServerListenerLocateSourceStream.MODULE_NAME + "[UDPClient] problem connecting to server :" + host);
 		}
 		catch (Exception ex)
 		{
 			logger.error(ServerListenerLocateSourceStream.MODULE_NAME + "[UDPClient]Exception :" + ex.getMessage(), ex);
+		}
+		finally
+		{
+			if (clientSocket != null)
+				clientSocket.close();
 		}
 		return null;
 	}

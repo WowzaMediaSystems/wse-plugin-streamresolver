@@ -26,12 +26,14 @@ import javax.xml.xpath.XPathFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
+import com.wowza.util.JSON;
 import com.wowza.util.StringUtils;
 import com.wowza.util.XMLUtils;
 import com.wowza.wms.application.IApplicationInstance;
 import com.wowza.wms.application.WMSProperties;
 import com.wowza.wms.bootstrap.Bootstrap;
 import com.wowza.wms.client.IClient;
+import com.wowza.wms.httpstreamer.model.HTTPStreamerItem;
 import com.wowza.wms.httpstreamer.model.IHTTPStreamerSession;
 import com.wowza.wms.logging.WMSLogger;
 import com.wowza.wms.logging.WMSLoggerFactory;
@@ -44,36 +46,122 @@ import com.wowza.wms.module.ModuleBase;
 import com.wowza.wms.rtp.model.RTPSession;
 import com.wowza.wms.stream.IMediaReader;
 import com.wowza.wms.stream.IMediaStream;
-import com.wowza.wms.stream.IMediaStreamNameAliasProvider;
-import com.wowza.wms.stream.IMediaStreamNameAliasProvider2;
 import com.wowza.wms.stream.IMediaStreamPlay;
 import com.wowza.wms.stream.MediaStream;
-import com.wowza.wms.stream.livepacketizer.ILiveStreamPacketizer;
+import com.wowza.wms.stream.MediaStreamNameAliasProviderBase;
 import com.wowza.wms.util.ModuleUtils;
 
 import edu.emory.mathcs.backport.java.util.concurrent.locks.WMSReadWriteLock;
-import edu.emory.mathcs.backport.java.util.concurrent.locks.WMSReentrantReadWriteLock;
 
-public class ModuleStreamResolver extends ModuleBase implements IMediaStreamNameAliasProvider2
+public class ModuleStreamResolver extends ModuleBase
 {
-	private class MediaCasterListener extends MediaCasterNotifyBase
+	class AliasProvider extends MediaStreamNameAliasProviderBase
+	{
+		@Override
+		public String resolvePlayAlias(IApplicationInstance appInstance, String name)
+		{
+			String streamName = name;
+			String streamExt = MediaStream.BASE_STREAM_EXT;
+			if (streamName != null)
+			{
+				String[] streamDecode = ModuleUtils.decodeStreamExtension(streamName, streamExt);
+				streamName = streamDecode[0];
+				streamExt = streamDecode[1];
+
+				if (appInstance.getMediaReaderContentType(streamExt) == IMediaReader.CONTENTTYPE_MEDIALIST)
+					return name;
+			}
+			return lookupStreamName(streamName);
+		}
+
+		@Override
+		public String resolvePlayAlias(IApplicationInstance appInstance, String name, IClient client)
+		{
+			String streamName = name;
+			String streamExt = MediaStream.BASE_STREAM_EXT;
+			if (streamName != null)
+			{
+				String[] streamDecode = ModuleUtils.decodeStreamExtension(streamName, streamExt);
+				streamName = streamDecode[0];
+				streamExt = streamDecode[1];
+
+				if (appInstance.getMediaReaderContentType(streamExt) == IMediaReader.CONTENTTYPE_MEDIALIST)
+					return name;
+			}
+			return lookupStreamName(streamName);
+		}
+
+		@Override
+		public String resolvePlayAlias(IApplicationInstance appInstance, String name, IHTTPStreamerSession httpSession)
+		{
+			HTTPStreamerItem item = httpSession.getHTTPStreamerAdapter().getHTTPStreamerItem();
+			String packetizer = item.getLiveStreamPacketizer();
+			String streamName = name;
+			String streamExt = MediaStream.BASE_STREAM_EXT;
+			if (streamName != null)
+			{
+				String[] streamDecode = ModuleUtils.decodeStreamExtension(streamName, streamExt);
+				streamName = streamDecode[0];
+				streamExt = streamDecode[1];
+
+				if (appInstance.getMediaReaderContentType(streamExt) == IMediaReader.CONTENTTYPE_MEDIALIST)
+					return name;
+			}
+			return lookupStreamName(streamName, packetizer);
+		}
+
+		@Override
+		public String resolvePlayAlias(IApplicationInstance appInstance, String name, RTPSession rtpSession)
+		{
+			String streamName = name;
+			String streamExt = MediaStream.BASE_STREAM_EXT;
+			if (streamName != null)
+			{
+				String[] streamDecode = ModuleUtils.decodeStreamExtension(streamName, streamExt);
+				streamName = streamDecode[0];
+				streamExt = streamDecode[1];
+
+				if (appInstance.getMediaReaderContentType(streamExt) == IMediaReader.CONTENTTYPE_MEDIALIST)
+					return name;
+			}
+			return lookupStreamName(streamName);
+		}
+
+		@Override
+		public String resolveStreamAlias(IApplicationInstance appInstance, String name)
+		{
+			return getOriginURLs(name);
+		}
+
+		@Override
+		public String resolveStreamAlias(IApplicationInstance appInstance, String name, IMediaCaster mediaCaster)
+		{
+			return getOriginURLs(name);
+		}
+	}
+
+	class MediaCasterListener extends MediaCasterNotifyBase
 	{
 		@Override
 		public void onMediaCasterCreate(IMediaCaster mediaCaster)
 		{
-			getLogger().info("onMediaCasterCreate+++++++++++++++++" + mediaCaster + ": " + Thread.currentThread());
+			if (mediaCaster instanceof LiveMediaStreamReceiver && !((LiveMediaStreamReceiver)mediaCaster).isTryConnect())
+			{
+				shutdownMediaCaster(mediaCaster);
+			}
 		}
 
 		@Override
 		public void onRegisterPlayer(IMediaCaster mediaCaster, IMediaStreamPlay player)
 		{
-			getLogger().info("onRegisterPlayer+++++++++++++++++" + mediaCaster + ": " + Thread.currentThread());
 			String mediaCasterId = mediaCaster.getMediaCasterId();
-			if(mediaCaster instanceof LiveMediaStreamReceiver)
+			if (mediaCaster instanceof LiveMediaStreamReceiver)
 			{
-				synchronized (players) {
+				synchronized(players)
+				{
 					List<IMediaStreamPlay> localPlayers = players.get(mediaCasterId);
-					if (localPlayers == null) {
+					if (localPlayers == null)
+					{
 						localPlayers = new ArrayList<IMediaStreamPlay>();
 						players.put(mediaCasterId, localPlayers);
 					}
@@ -85,13 +173,14 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 		@Override
 		public void onUnRegisterPlayer(IMediaCaster mediaCaster, IMediaStreamPlay player)
 		{
-			getLogger().info("onUnRegisterPlayer+++++++++++++++++" + mediaCaster + ": " + Thread.currentThread());
-			String medaiCasterId = mediaCaster.getMediaCasterId();
-			if(mediaCaster instanceof LiveMediaStreamReceiver)
+			String mediaCasterId = mediaCaster.getMediaCasterId();
+			if (mediaCaster instanceof LiveMediaStreamReceiver)
 			{
-				synchronized (players) {
-					List<IMediaStreamPlay> localPlayers = players.get(medaiCasterId);
-					if (localPlayers != null) {
+				synchronized(players)
+				{
+					List<IMediaStreamPlay> localPlayers = players.get(mediaCasterId);
+					if (localPlayers != null)
+					{
 						localPlayers.remove(player);
 					}
 				}
@@ -99,75 +188,44 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 		}
 
 		@Override
-		public void onSetSourceStream(IMediaCaster mediaCaster, IMediaStream stream)
-		{
-			getLogger().info("onSetSourceStream+++++++++++++++++" + mediaCaster + ": " + Thread.currentThread());
-		}
-
-		@Override
-		public void onConnectSuccess(IMediaCaster mediaCaster)
-		{
-			getLogger().info("onConnectSuccess+++++++++++++++++" + mediaCaster + ": " + Thread.currentThread());
-		}
-
-		@Override
-		public void onStreamStart(IMediaCaster mediaCaster)
-		{
-			getLogger().info("onStreamStart+++++++++++++++++" + mediaCaster + ": " + Thread.currentThread());
-		}
- 
-		@Override
 		public void onConnectStart(IMediaCaster mediaCaster)
 		{
-			getLogger().info("onConnectStart+++++++++++++++++" + mediaCaster + ": " + Thread.currentThread());
-			String name = MediaCasterItem.parseIdString(mediaCaster.getMediaCasterId()).getName();
+			String streamName = MediaCasterItem.parseIdString(mediaCaster.getMediaCasterId()).getName();
 			if (mediaCaster instanceof LiveMediaStreamReceiver)
 			{
 				if (debug)
-					logger.info(ModuleStreamResolver.MODULE_NAME + "**Resolving stream name: " + name);
+					logger.info(ModuleStreamResolver.MODULE_NAME + "**Resolving stream name: " + streamName);
 
-//				long lastReset = mediaCaster.getStreamTimeoutLastReset();
-//				long lastSuccess = mediaCaster.getConnectLastSuccess();
-//				int lastIdx = ((LiveMediaStreamReceiver)mediaCaster).getLiveMediaStreamURLIndex();
-
-//				if (lastReset > lastSuccess && lastIdx == 0)
-//				{
-//					mediaCaster.shutdown(false);
-//				}
-//				else
-//				{
-					((LiveMediaStreamReceiver)mediaCaster).resolveURL();
-					synchronized(urls)
+				((LiveMediaStreamReceiver)mediaCaster).resolveURL();
+				synchronized(urls)
+				{
+					int idx = ((LiveMediaStreamReceiver)mediaCaster).getLiveMediaStreamURLIndex();
+					List<String> originList = urls.get(streamName);
+					if (originList != null && !originList.isEmpty())
 					{
-						int idx = ((LiveMediaStreamReceiver)mediaCaster).getLiveMediaStreamURLIndex();
-						List<String> originList = urls.get(name);
-						if (originList != null && !originList.isEmpty())
-						{
-							((LiveMediaStreamReceiver)mediaCaster).setLiveMediaStreamURLIndex(idx % originList.size());
-						}
+						((LiveMediaStreamReceiver)mediaCaster).setLiveMediaStreamURLIndex(idx % originList.size());
 					}
-//				}
+				}
 			}
 		}
 
 		@Override
 		public void onConnectFailure(IMediaCaster mediaCaster)
 		{
-			getLogger().info("onConnectFailure===============" + mediaCaster + ": " + Thread.currentThread());
-			String name = MediaCasterItem.parseIdString(mediaCaster.getMediaCasterId()).getName();
+			String streamName = MediaCasterItem.parseIdString(mediaCaster.getMediaCasterId()).getName();
 			if (mediaCaster instanceof LiveMediaStreamReceiver)
 			{
 				synchronized(urls)
 				{
 					int idx = ((LiveMediaStreamReceiver)mediaCaster).getLiveMediaStreamURLIndex();
-					List<String> originList = urls.get(name);
-					if(originList != null && originList.size() > idx)
+					List<String> originList = urls.get(streamName);
+					if (originList != null && originList.size() > idx)
 					{
 						originList.remove(idx);
 						((LiveMediaStreamReceiver)mediaCaster).resolveURL();
-						if(originList.isEmpty())
+						if (originList.isEmpty())
 						{
-							urls.remove(name);
+							urls.remove(streamName);
 							shutdownMediaCaster(mediaCaster);
 						}
 					}
@@ -178,48 +236,48 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 		@Override
 		public void onMediaCasterDestroy(IMediaCaster mediaCaster)
 		{
-			getLogger().info("onMediaCasterDestroy+++++++++++++++" + mediaCaster + ": " + Thread.currentThread());
-			String name = MediaCasterItem.parseIdString(mediaCaster.getMediaCasterId()).getName();
+			String mediaCasterId = mediaCaster.getMediaCasterId();
+			String streamName = MediaCasterItem.parseIdString(mediaCasterId).getName();
 			if (mediaCaster instanceof LiveMediaStreamReceiver)
 			{
 				synchronized(urls)
 				{
-					urls.remove(name);
+					urls.remove(streamName);
 				}
 				synchronized(players)
 				{
-					players.remove(mediaCaster.getMediaCasterId());
+					players.remove(mediaCasterId);
 				}
 			}
 		}
-		
+
 		@Override
 		public void onStreamStop(IMediaCaster mediaCaster)
 		{
-			getLogger().info("onStreamStop===============" + mediaCaster + ": " + Thread.currentThread());
-			String name = MediaCasterItem.parseIdString(mediaCaster.getMediaCasterId()).getName();
+			String streamName = MediaCasterItem.parseIdString(mediaCaster.getMediaCasterId()).getName();
 			if (mediaCaster instanceof LiveMediaStreamReceiver)
 			{
 				synchronized(urls)
 				{
 					int idx = ((LiveMediaStreamReceiver)mediaCaster).getLiveMediaStreamURLIndex();
-					List<String> originList = urls.get(name);
-					if(originList != null && originList.size() > idx)
+					List<String> originList = urls.get(streamName);
+					if (originList != null && originList.size() > idx)
 					{
 						originList.remove(idx);
-						if(originList.isEmpty())
+						if (originList.isEmpty())
 						{
-							urls.remove(name);
+							urls.remove(streamName);
 							shutdownMediaCaster(mediaCaster);
 						}
 					}
 				}
 			}
 		}
-		
+
 		private void shutdownMediaCaster(final IMediaCaster mediaCaster)
 		{
-			appInstance.getVHost().getThreadPool().execute(new Runnable() {
+			appInstance.getVHost().getThreadPool().execute(new Runnable()
+			{
 
 				@Override
 				public void run()
@@ -233,22 +291,22 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 						synchronized(players)
 						{
 							List<IMediaStreamPlay> localPlayers = players.remove(mediaCasterId);
-							if(localPlayers != null)
+							if (localPlayers != null)
 							{
-								for(IMediaStreamPlay player : localPlayers)
+								for (IMediaStreamPlay player : localPlayers)
 								{
 									IMediaStream stream = player.getParent();
-									if(stream != null)
+									if (stream != null)
 									{
-										if(stream.getClient() != null)
+										if (stream.getClient() != null)
 										{
 											stream.getClient().setShutdownClient(true);
 										}
-										if(stream.getRTPStream() != null)
+										if (stream.getRTPStream() != null)
 										{
 											appInstance.getVHost().getRTPContext().shutdownRTPSession(stream.getRTPStream().getSession());
 										}
-										if(stream.getHTTPStreamerSession() != null)
+										if (stream.getHTTPStreamerSession() != null)
 										{
 											stream.getHTTPStreamerSession().rejectSession();
 											stream.getHTTPStreamerSession().setDeleteSession();
@@ -261,7 +319,7 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 						item.setValid(false);
 						item.shutdown(false);
 					}
-					catch(Exception e)
+					catch (Exception e)
 					{
 						getLogger().error("ModuleStreamResolver.MediaCasterListener.shutdownMediaCaster exception: " + e.getMessage(), e);
 					}
@@ -279,13 +337,15 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 		private String appName;
 		private String appInstance;
 		private String streamName;
+		private String packetizer;
 		private String host;
 		private int port;
 		private int udpTimeout;
 
-		public StreamRequest(String host, String streamName, String appInstance, String appName, int port, int udpTimeout)
+		public StreamRequest(String host, String streamName, String packetizer, String appInstance, String appName, int port, int udpTimeout)
 		{
 			this.streamName = streamName;
+			this.packetizer = packetizer;
 			this.appInstance = appInstance;
 			this.appName = appName;
 			this.port = port;
@@ -311,15 +371,29 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 			message.streamName = remoteStreamName;
 			message.appInstance = appInstance;
 			message.appName = appName;
+			message.packetizer = packetizer;
 
-			String responseMessage = udp.send(message);
+			String response = udp.send(message);
 
 			if (debug)
-				logger.info(MODULE_NAME + "[sendUDPMessage] response from host :: " + host + " :: " + responseMessage);
+				logger.info(MODULE_NAME + "[sendUDPMessage] response from host :: " + host + " :: " + response);
 
-			if (responseMessage != null && responseMessage.length() > 0 && !responseMessage.toLowerCase().startsWith("error"))
+			if (response != null && response.length() > 0)
 			{
-				return responseMessage;
+				try
+				{
+					JSON json = new JSON(response);
+					if (!json.containsKey("error"))
+					{
+						String server = json.getString("server");
+						return server;
+					}
+				}
+				catch (Exception e)
+				{
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 			}
 			return null;
 		}
@@ -370,11 +444,11 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 			useExternalFile = true;
 			targetPath = appInstance.decodeStorageDir(appInstance.getProperties().getPropertyStr(MODULE_PROPERTY_PREFIX + "ConfTargetPath", null));
 		}
-		
+
 		defaultApplicationName = appInstance.getProperties().getPropertyStr(MODULE_PROPERTY_PREFIX + "OriginApplicationName", appInstance.getApplication().getName());
 		defaultApplicationInstanceName = appInstance.getProperties().getPropertyStr(MODULE_PROPERTY_PREFIX + "OriginApplicationInstanceName", appInstance.getName());
 
-		appInstance.setStreamNameAliasProvider(this);
+		appInstance.setStreamNameAliasProvider(new AliasProvider());
 		appInstance.addMediaCasterListener(new MediaCasterListener());
 	}
 
@@ -506,10 +580,11 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 
 		return appInstance.getProperties().getPropertyStr(MODULE_PROPERTY_PREFIX + "OriginServers", null);
 	}
-	
-	private boolean isStreamAvailable(final String streamName, final List<String> originList)
+
+	private boolean isStreamAvailable(final String streamName, final List<String> originList, final String packetizer)
 	{
 		boolean available = false;
+		String nameContext = packetizer != null ? packetizer + "_" + streamName : streamName;
 		final List<Future<String>> futures = new ArrayList<Future<String>>();
 		final CompletionService<String> ecs = new ExecutorCompletionService<String>(Executors.newCachedThreadPool());
 
@@ -517,7 +592,7 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 
 		if (debug)
 			logger.info("**Checking hostnames ... " + hostNames);
-		
+
 		if (!StringUtils.isEmpty(hostNames))
 		{
 			String[] hosts = hostNames.split(",");
@@ -525,7 +600,7 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 			{
 				for (String host : hosts)
 				{
-					futures.add(ecs.submit(new StreamRequest(host, streamName, defaultApplicationInstanceName, defaultApplicationName, port, timeout)));
+					futures.add(ecs.submit(new StreamRequest(host, streamName, packetizer, defaultApplicationInstanceName, defaultApplicationName, port, timeout)));
 				}
 
 				// wait for first positive result to return.
@@ -533,16 +608,17 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 				{
 					Future<String> result = ecs.take();
 					futures.remove(result);
-					String url = result.get();
-					if (url != null)
+					String origin = result.get();
+					if (origin != null)
 					{
 						synchronized(originList)
 						{
-							originList.add(url);
+							originList.add(origin);
 						}
 						synchronized(urls)
 						{
-							urls.put(streamName, originList);
+							urls.put(nameContext, originList);
+
 						}
 						available = true;
 						break;
@@ -570,12 +646,12 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 								{
 									Future<String> result = ecs.take();
 									futures.remove(result);
-									String url = result.get();
-									if (url != null)
+									String origin = result.get();
+									if (origin != null)
 									{
 										synchronized(originList)
 										{
-											originList.add(url);
+											originList.add(origin);
 										}
 									}
 								}
@@ -589,7 +665,7 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 				}
 				synchronized(originList)
 				{
-					lookups.remove(streamName);
+					lookups.remove(nameContext);
 					originList.notifyAll();
 				}
 			}
@@ -597,78 +673,30 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 		return available;
 	}
 
-	@Override
-	public String resolvePlayAlias(IApplicationInstance appInstance, String name, IClient client) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public String resolvePlayAlias(IApplicationInstance appInstance, String name, IHTTPStreamerSession httpSession) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public String resolvePlayAlias(IApplicationInstance appInstance, String name, RTPSession rtpSession) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public String resolvePlayAlias(IApplicationInstance appInstance, String name,
-			ILiveStreamPacketizer liveStreamPacketizer) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public String resolveStreamAlias(IApplicationInstance appInstance, String name, IMediaCaster mediaCaster) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public String resolvePlayAlias(IApplicationInstance appInstance, String name)
+	private String lookupStreamName(String name)
 	{
-		getLogger().info("resolvePlayAlias...........................");
-		String streamName = name;
-		String streamExt = MediaStream.BASE_STREAM_EXT;
-		if (streamName != null)
-		{
-			String[] streamDecode = ModuleUtils.decodeStreamExtension(streamName, streamExt);
-			streamName = streamDecode[0];
-			streamExt = streamDecode[1];
-
-			if (appInstance.getMediaReaderContentType(streamExt) == IMediaReader.CONTENTTYPE_MEDIALIST)
-				return name;
-		}
-		return getStreamName(streamName);
+		return lookupStreamName(name, null);
 	}
 
-	@Override
-	public String resolveStreamAlias(IApplicationInstance appInstance, String name)
+	private String lookupStreamName(String name, String packetizer)
 	{
-		return getOriginURLs(name);
-	}
+		name = appInstance.getProperties().getPropertyStr(MODULE_PROPERTY_PREFIX + "OriginStreamName", name);
+		String nameContext = packetizer != null ? packetizer + "_" + name : name;
 
-	private String getStreamName(String name)
-	{
-		String streamName = appInstance.getProperties().getPropertyStr(MODULE_PROPERTY_PREFIX + "OriginStreamName", name);
 		List<String> originList = null;
 		boolean newLookup = false;
 
 		synchronized(urls)
 		{
-			originList = urls.get(streamName);
+			originList = urls.get(nameContext);
 			if (originList != null)
-				return name;
+				return nameContext;
 
-			originList = lookups.get(streamName);
+			originList = lookups.get(nameContext);
 			if (originList == null)
 			{
 				originList = new ArrayList<String>();
-				lookups.put(streamName, originList);
+				lookups.put(nameContext, originList);
 				newLookup = true;
 			}
 		}
@@ -690,7 +718,7 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 		}
 		else
 		{
-			if (!isStreamAvailable(streamName, originList))
+			if (!isStreamAvailable(name, originList, packetizer))
 				return null;
 		}
 
@@ -699,24 +727,23 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 			if (originList.isEmpty())
 			{
 				if (debug)
-					logger.warn(ModuleStreamResolver.MODULE_NAME + ".getStreamName() stream not available");
+					logger.warn(ModuleStreamResolver.MODULE_NAME + ".getStreamName() stream not available[" + nameContext + "]");
 				return null;
 			}
 		}
 		if (debug)
-			logger.info(ModuleStreamResolver.MODULE_NAME + ".getStreamName[" + name + "] ");
-		return name;
+			logger.info(ModuleStreamResolver.MODULE_NAME + ".getStreamName[" + nameContext + "] ");
+		return nameContext;
 	}
 
-	private String getOriginURLs(String name)
+	private String getOriginURLs(String nameContext)
 	{
-		String streamName = appInstance.getProperties().getPropertyStr(MODULE_PROPERTY_PREFIX + "OriginStreamName", name);
 		String ret = "";
 		List<String> originList = null;
 		List<String> originListCopy = new ArrayList<String>();
 		synchronized(urls)
 		{
-			originList = urls.get(streamName);
+			originList = urls.get(nameContext);
 		}
 		if (originList != null)
 		{
@@ -743,7 +770,9 @@ public class ModuleStreamResolver extends ModuleBase implements IMediaStreamName
 			}
 		}
 		if (debug)
+		{
 			logger.info(ModuleStreamResolver.MODULE_NAME + ".getOriginURLs " + ret);
+		}
 		return ret;
 	}
 }
