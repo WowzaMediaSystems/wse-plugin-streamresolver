@@ -4,6 +4,7 @@
  */
 package com.wowza.wms.plugin.streamresolver;
 
+import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -68,9 +69,9 @@ public class UDPClient
 		{
 			logger.warn(ServerListenerLocateSourceStream.MODULE_NAME + "[UDPClient] timeout connecting to server :" + host);
 		}
-		catch (SocketException se)
+		catch (IOException ioe)
 		{
-			logger.warn(ServerListenerLocateSourceStream.MODULE_NAME + "[UDPClient] problem connecting to server :" + host);
+			logger.warn(ServerListenerLocateSourceStream.MODULE_NAME + "[UDPClient] problem connecting to server :" + host + ": " + ioe.getMessage());
 		}
 		catch (Exception ex)
 		{

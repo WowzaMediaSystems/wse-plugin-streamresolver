@@ -56,21 +56,24 @@ public class UDPServer
 			{
 				String vhostName = vhostIterator.next();
 				IVHost vhost = VHostSingleton.getInstance(vhostName);
-
-				IApplication application = vhost.getApplication(appName);
-				if (application != null)
+				
+				if(vhost.isApplicationLoaded(appName))
 				{
-					IApplicationInstance appInstance = application.getAppInstance(appInstanceName);
-					if (appInstance != null)
+					IApplication application = vhost.getApplication(appName);
+					if (application != null)
 					{
-						MediaStreamMap streams = appInstance.getStreams();
-						if ((!StringUtils.isEmpty(packetizer) && streams.getLiveStreamPacketizer(streamName, packetizer, false) != null) || streams.getStream(streamName) != null)
+						IApplicationInstance appInstance = application.getAppInstance(appInstanceName);
+						if (appInstance != null)
 						{
-							String server = "{server: \"" + publicHostName + "/" + appName + "/" + appInstanceName + "/" + streamName + "\"}";
-
-							if (debug)
-								logger.info(ServerListenerLocateSourceStream.MODULE_NAME + "[UDPServer] server::" + server);
-							return server;
+							MediaStreamMap streams = appInstance.getStreams();
+							if ((!StringUtils.isEmpty(packetizer) && streams.getLiveStreamPacketizer(streamName, packetizer, false) != null) || streams.getStream(streamName) != null)
+							{
+								String server = "{server: \"" + publicHostName + "/" + appName + "/" + appInstanceName + "/" + streamName + "\"}";
+	
+								if (debug)
+									logger.info(ServerListenerLocateSourceStream.MODULE_NAME + "[UDPServer] server::" + server);
+								return server;
+							}
 						}
 					}
 				}
