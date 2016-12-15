@@ -32,8 +32,12 @@ import com.wowza.util.XMLUtils;
 import com.wowza.wms.application.*;
 import com.wowza.wms.bootstrap.Bootstrap;
 import com.wowza.wms.client.IClient;
+import com.wowza.wms.httpstreamer.cupertinostreaming.httpstreamer.HTTPStreamerSessionCupertino;
 import com.wowza.wms.httpstreamer.model.HTTPStreamerItem;
 import com.wowza.wms.httpstreamer.model.IHTTPStreamerSession;
+import com.wowza.wms.httpstreamer.mpegdashstreaming.httpstreamer.HTTPStreamerSessionMPEGDash;
+import com.wowza.wms.httpstreamer.sanjosestreaming.httpstreamer.HTTPStreamerSessionSanJose;
+import com.wowza.wms.httpstreamer.smoothstreaming.httpstreamer.HTTPStreamerSessionSmoothStreamer;
 import com.wowza.wms.logging.WMSLogger;
 import com.wowza.wms.logging.WMSLoggerFactory;
 import com.wowza.wms.mediacaster.IMediaCaster;
@@ -77,7 +81,10 @@ public class ModuleStreamResolver extends ModuleBase
 			// AppInstances will stay loaded intil there is at least 1 valid connection. 
 			// Increment the connection count to allow the appInstnace to shut down if there are no other connection attempts.
 			if(ret == null && appInstance.getClientCountTotal() <= 0)
+			{
 				appInstance.incClientCountTotal();
+				((ApplicationInstance)appInstance).setClientRemoveTime(System.currentTimeMillis());
+			}
 			return ret;
 		}
 
@@ -99,16 +106,16 @@ public class ModuleStreamResolver extends ModuleBase
 			// AppInstances will stay loaded intil there is at least 1 valid connection. 
 			// Increment the connection count to allow the appInstnace to shut down if there are no other connection attempts.
 			if(ret == null && appInstance.getClientCountTotal() <= 0)
-					appInstance.incClientCountTotal();
+			{
+				appInstance.incClientCountTotal();
+				((ApplicationInstance)appInstance).setClientRemoveTime(System.currentTimeMillis());
+			}
 			return ret;
 		}
 
 		@Override
 		public String resolvePlayAlias(IApplicationInstance appInstance, String name, IHTTPStreamerSession httpSession)
 		{
-			HTTPStreamerItem item = httpSession.getHTTPStreamerAdapter().getHTTPStreamerItem();
-			String packetizer = item.getLiveStreamPacketizer();
-			String repeater = item.getLiveStreamRepeater();
 			String streamName = name;
 			String streamExt = MediaStream.BASE_STREAM_EXT;
 			if (streamName != null)
@@ -120,11 +127,63 @@ public class ModuleStreamResolver extends ModuleBase
 				if (appInstance.getMediaReaderContentType(streamExt) == IMediaReader.CONTENTTYPE_MEDIALIST)
 					return name;
 			}
+			String packetizer = null;
+			String repeater = null;
+			if(httpSession != null && httpSession.getHTTPStreamerAdapter() != null)
+			{
+				HTTPStreamerItem item = httpSession.getHTTPStreamerAdapter().getHTTPStreamerItem();
+				if(item != null)
+				{
+					packetizer = item.getLiveStreamPacketizer();
+					repeater = item.getLiveStreamRepeater();
+				}
+			}
+			
+			if(packetizer == null)
+				packetizer = resolvePacketizer(httpSession);
+			if(repeater == null)
+				repeater = resolveRepeater(httpSession);
+			
 			String ret = getStreamName(streamName, packetizer, repeater);
 			// AppInstances will stay loaded intil there is at least 1 valid connection. 
 			// Increment the connection count to allow the appInstnace to shut down if there are no other connection attempts.
 			if(ret == null && appInstance.getClientCountTotal() <= 0)
+			{
 				appInstance.incClientCountTotal();
+				((ApplicationInstance)appInstance).setClientRemoveTime(System.currentTimeMillis());
+			}
+			return ret;
+		}
+
+		private String resolvePacketizer(IHTTPStreamerSession httpSession)
+		{
+			String ret = null;
+			
+			if(httpSession instanceof HTTPStreamerSessionCupertino)
+				ret = "cupertinostreamingpacketizer";
+			else if(httpSession instanceof HTTPStreamerSessionSanJose)
+				ret = "sanjosestreamingpacketizer";
+			else if(httpSession instanceof HTTPStreamerSessionSmoothStreamer)
+				ret = "smoothstreamingpacketizer";
+			else if(httpSession instanceof HTTPStreamerSessionMPEGDash)
+				ret = "mpegdashstreamingpacketizer";
+			
+			return ret;
+		}
+
+		private String resolveRepeater(IHTTPStreamerSession httpSession)
+		{
+			String ret = null;
+			
+			if(httpSession instanceof HTTPStreamerSessionCupertino)
+				ret = "cupertinostreamingrepeater";
+			else if(httpSession instanceof HTTPStreamerSessionSanJose)
+				ret = "sanjosestreamingrepeater";
+			else if(httpSession instanceof HTTPStreamerSessionSmoothStreamer)
+				ret = "smoothstreamingrepeater";
+			else if(httpSession instanceof HTTPStreamerSessionMPEGDash)
+				ret = "mpegdashstreamingrepeater";
+			
 			return ret;
 		}
 
@@ -146,7 +205,10 @@ public class ModuleStreamResolver extends ModuleBase
 			// AppInstances will stay loaded intil there is at least 1 valid connection. 
 			// Increment the connection count to allow the appInstnace to shut down if there are no other connection attempts.
 			if(ret == null && appInstance.getClientCountTotal() <= 0)
+			{
 				appInstance.incClientCountTotal();
+				((ApplicationInstance)appInstance).setClientRemoveTime(System.currentTimeMillis());
+			}
 			return ret;
 		}
 		
