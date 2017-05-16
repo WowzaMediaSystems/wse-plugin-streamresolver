@@ -40,6 +40,7 @@ import com.wowza.wms.httpstreamer.sanjosestreaming.httpstreamer.HTTPStreamerSess
 import com.wowza.wms.httpstreamer.smoothstreaming.httpstreamer.HTTPStreamerSessionSmoothStreamer;
 import com.wowza.wms.logging.WMSLogger;
 import com.wowza.wms.logging.WMSLoggerFactory;
+import com.wowza.wms.logging.WMSLoggerIDs;
 import com.wowza.wms.mediacaster.IMediaCaster;
 import com.wowza.wms.mediacaster.IMediaCasterValidateMediaCaster;
 import com.wowza.wms.mediacaster.MediaCaster;
@@ -248,9 +249,13 @@ public class ModuleStreamResolver extends ModuleBase
 		public String resolveStreamAlias(IApplicationInstance appInstance, String name)
 		{
 			String url = "";
+			if(debug)
+				logger.info(MODULE_NAME + ".resolveStreamAlias getting url for [" + appInstance.getContextStr() + "/" + name + "] urls: " + urls.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 			synchronized(lock)
 			{
 				url = urls.get(name);
+				if(debug)
+					logger.info(MODULE_NAME + ".resolveStreamAlias got url for [" + appInstance.getContextStr() + "/" + name + "]: url: " + url + ", urls: " + urls.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 			}
 			return StringUtils.isEmpty(url) ? "" : url;
 		}
@@ -259,9 +264,13 @@ public class ModuleStreamResolver extends ModuleBase
 		public String resolveStreamAlias(IApplicationInstance appInstance, String name, IMediaCaster mediaCaster)
 		{
 			String url = "";
+			if(debug)
+				logger.info(MODULE_NAME + ".resolveStreamAlias2 getting url for [" + appInstance.getContextStr() + "/" + name + "] urls: " + urls.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 			synchronized(lock)
 			{
 				url = urls.get(name);
+				if(debug)
+					logger.info(MODULE_NAME + ".resolveStreamAlias2 got url for [" + appInstance.getContextStr() + "/" + name + "]: url: " + url + ", urls: " + urls.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 			}
 			return StringUtils.isEmpty(url) ? "" : url;
 		}
@@ -272,12 +281,10 @@ public class ModuleStreamResolver extends ModuleBase
 		@Override
 		public void onMediaCasterCreate(IMediaCaster mediaCaster)
 		{
-			System.out.println("+++++++++++++++++++++++++++++++++++++onMediaCasterCreate: " + mediaCaster);
 			// Detect missing url and shut down mediaCaster otherwise we have to wait for it to time out.
 			if (mediaCaster instanceof LiveMediaStreamReceiver && !((LiveMediaStreamReceiver)mediaCaster).isTryConnect())
 			{
 				final LiveMediaStreamReceiver liveMediaStreamReceiver = (LiveMediaStreamReceiver)mediaCaster;
-				System.out.println("onMediaCasterCreate shutting down mediaCaster");
 				appInstance.getVHost().getThreadPool().execute(new Runnable() {
 
 					@Override
@@ -297,6 +304,8 @@ public class ModuleStreamResolver extends ModuleBase
 			String mediaCasterId = mediaCaster.getMediaCasterId();
 			if (mediaCaster instanceof LiveMediaStreamReceiver)
 			{
+				if(debug)
+					logger.info(MODULE_NAME + ".onRegisterPlayer before adding player for [" + appInstance.getContextStr() + "/" + mediaCasterId + "] players: " + players.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 				synchronized(lock)
 				{
 					List<IMediaStreamPlay> localPlayers = players.get(mediaCasterId);
@@ -306,6 +315,8 @@ public class ModuleStreamResolver extends ModuleBase
 						players.put(mediaCasterId, localPlayers);
 					}
 					localPlayers.add(player);
+					if(debug)
+						logger.info(MODULE_NAME + ".onRegisterPlayer after adding player for [" + appInstance.getContextStr() + "/" + mediaCasterId + "] players: " + players.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 				}
 			}
 		}
@@ -316,6 +327,8 @@ public class ModuleStreamResolver extends ModuleBase
 			String mediaCasterId = mediaCaster.getMediaCasterId();
 			if (mediaCaster instanceof LiveMediaStreamReceiver)
 			{
+				if(debug)
+					logger.info(MODULE_NAME + ".onUnRegisterPlayer before removing player for [" + appInstance.getContextStr() + "/" + mediaCasterId + "] players: " + players.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 				synchronized(lock)
 				{
 					List<IMediaStreamPlay> localPlayers = players.get(mediaCasterId);
@@ -323,6 +336,8 @@ public class ModuleStreamResolver extends ModuleBase
 					{
 						localPlayers.remove(player);
 					}
+					if(debug)
+						logger.info(MODULE_NAME + ".onUnRegisterPlayer after removing player for [" + appInstance.getContextStr() + "/" + mediaCasterId + "] players: " + players.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 				}
 			}
 		}
@@ -398,17 +413,24 @@ public class ModuleStreamResolver extends ModuleBase
 			System.out.println("Shutting down MediaCasterPlayers. Waiting for lock");
 			String mediaCasterId = mediaCaster.getMediaCasterId();
 			List<IMediaStreamPlay> localPlayers = null;
+			if(debug)
+				logger.info(MODULE_NAME + ".shutdownPlayers before removing player list for [" + appInstance.getContextStr() + "/" + mediaCasterId + "] players: " + players.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 			synchronized(lock)
 			{
 				localPlayers = players.remove(mediaCasterId);
+				if(debug)
+					logger.info(MODULE_NAME + ".shutdownPlayers after removing player list for [" + appInstance.getContextStr() + "/" + mediaCasterId + "] players: " + players.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 			}
 			if (localPlayers != null)
 			{
+				if(debug)
+					logger.info(MODULE_NAME + ".shutdownPlayers waiting for lock for [" + appInstance.getContextStr() + "/" + mediaCasterId + "]", WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 				WMSReadWriteLock writeLock = appInstance.getClientsLockObj();
 				writeLock.writeLock().lock();
 				try
 				{
-					System.out.println("Shutting down MediaCasterPlayers. Got lock");
+					if(debug)
+						logger.info(MODULE_NAME + ".shutdownPlayers got lock for [" + appInstance.getContextStr() + "/" + mediaCasterId + "]", WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 					for (IMediaStreamPlay player : localPlayers)
 					{
 						IMediaStream stream = player.getParent();
@@ -432,11 +454,13 @@ public class ModuleStreamResolver extends ModuleBase
 				}
 				catch (Exception e)
 				{
-					getLogger().error("ModuleStreamResolver.MediaCasterListener.shutdownMediaCaster exception: " + e.getMessage(), e);
+					getLogger().error("ModuleStreamResolver.MediaCasterListener.shutdownPlayers exception: " + e.getMessage(), e);
 				}
 				finally
 				{
 					writeLock.writeLock().unlock();
+					if(debug)
+						logger.info(MODULE_NAME + ".shutdownPlayers released lock for [" + appInstance.getContextStr() + "/" + mediaCasterId + "]", WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 				}
 			}
 		}
@@ -446,15 +470,18 @@ public class ModuleStreamResolver extends ModuleBase
 		@Override
 		public void onMediaCasterDestroy(IMediaCaster mediaCaster)
 		{
-			System.out.println("+++++++++++++++++++++++++++++++++++++onMediaCasterDestroy: " + mediaCaster);
 			String mediaCasterId = mediaCaster.getMediaCasterId();
 			String streamName = MediaCasterItem.parseIdString(mediaCasterId).getName();
 			if (mediaCaster instanceof LiveMediaStreamReceiver)
 			{
+				if(debug)
+					logger.info(MODULE_NAME + ".onMediaCasterDestroy before removing url and players for [" + appInstance.getContextStr() + "/(" + streamName + ":" + mediaCasterId + ")] urls: " + urls.toString() + ", players: " + players.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 				synchronized(lock)
 				{
 					urls.remove(streamName);
 					players.remove(mediaCasterId);
+					if(debug)
+						logger.info(MODULE_NAME + ".onMediaCasterDestroy after removing url and players for [" + appInstance.getContextStr() + "/(" + streamName + ":" + mediaCasterId + ")] urls: " + urls.toString() + ", players: " + players.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 				}
 			}
 		}
@@ -532,9 +559,13 @@ public class ModuleStreamResolver extends ModuleBase
 							{
 								url = protocol + "://" + url;
 								url = url.trim();
+								if(debug)
+									logger.info(MODULE_NAME + ".Lookup.run() before adding url for [" + appInstance.getContextStr() + "/" + streamName + "] Lookup.url: " + url + ", urls: " + urls.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 								synchronized(lock)
 								{
 									urls.put(streamName, url);
+									if(debug)
+										logger.info(MODULE_NAME + ".Lookup.run() after adding url for [" + appInstance.getContextStr() + "/" + streamName + "] Lookup.url: " + url + ", urls: " + urls.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 								}
 							}
 							break;
@@ -556,11 +587,20 @@ public class ModuleStreamResolver extends ModuleBase
 					}
 					futures.clear();
 				}
+				if(debug)
+					logger.info(MODULE_NAME + ".Lookup.run() before removing lookups for [" + appInstance.getContextStr() + "/" + streamName + "] lookups: " + lookups.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 				synchronized(lock)
 				{
 					lookups.remove(streamName);
+					if(debug)
+						logger.info(MODULE_NAME + ".Lookup.run() after removing lookups for [" + appInstance.getContextStr() + "/" + streamName + "] lookups: " + lookups.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 				}
 			}
+		}
+		
+		public String toString()
+		{
+			return "Lookup: {streamName: " + streamName + ", name: " + name + ", packetizer: " + packetizer + ", startTime: " + startTime + ", url: " + url + "}";
 		}
 	}
 
@@ -827,7 +867,9 @@ public class ModuleStreamResolver extends ModuleBase
 
 	private String lookupURL(String nameContext, String packetizer)
 	{
-		Lookup lookup = null;		
+		Lookup lookup = null;	
+		if(debug)
+			logger.info(MODULE_NAME + ".lookupUrl Looking up url for [" + appInstance.getContextStr() + "/(" + nameContext + ":" + packetizer + ")] lookups: " + lookups.toString() + ", urls: " + urls.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 		synchronized(lock)
 		{
 			lookup = lookups.get(nameContext);
@@ -836,14 +878,21 @@ public class ModuleStreamResolver extends ModuleBase
 				lookup = new Lookup(nameContext, packetizer);
 				lookup.start();
 				lookups.put(nameContext, lookup);
+				if(debug)
+					logger.info(MODULE_NAME + ".lookupUrl adding new lookup url for [" + appInstance.getContextStr() + "/(" + nameContext + ":" + packetizer + ")] lookup: " + lookup.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 			}
 			else if(urls.containsKey(nameContext))
 			{
-				return urls.get(nameContext);
+				String url = urls.get(nameContext);
+				if(debug)
+					logger.info(MODULE_NAME + ".lookupUrl from urls list, returning url for [" + appInstance.getContextStr() + "/(" + nameContext + ":" + packetizer + ")] url: " + url, WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
+				return url;
 			}
 		}
 		try
 		{
+			if(debug)
+				logger.info(MODULE_NAME + ".lookupUrl joining existing lookup for [" + appInstance.getContextStr() + "/(" + nameContext + ":" + packetizer + ")] lookup: " + lookup.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 			lookup.join(timeout);
 		}
 		catch (InterruptedException e)
@@ -851,6 +900,8 @@ public class ModuleStreamResolver extends ModuleBase
 			
 		}
 		
+		if(debug)
+			logger.info(MODULE_NAME + ".lookupUrl after lookup, returning url for [" + appInstance.getContextStr() + "/(" + nameContext + ":" + packetizer + ")] url: " + lookup.url, WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 		return StringUtils.isEmpty(lookup.url) ? "" : lookup.url;
 	}
 }
