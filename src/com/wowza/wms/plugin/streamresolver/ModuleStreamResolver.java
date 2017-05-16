@@ -275,6 +275,27 @@ public class ModuleStreamResolver extends ModuleBase
 			return StringUtils.isEmpty(url) ? "" : url;
 		}
 	}
+	
+	class MediaCasterShutdownRunner implements Runnable
+	{
+		final LiveMediaStreamReceiver liveMediaStreamReceiver;
+		
+		MediaCasterShutdownRunner(LiveMediaStreamReceiver liveMediaStreamReceiver)
+		{
+			this.liveMediaStreamReceiver = liveMediaStreamReceiver;
+		}
+		
+		@Override
+		public void run()
+		{
+			MediaCasterStreamItem item = liveMediaStreamReceiver.getMediaCasterStreamItem();
+			if(item != null)
+			{
+				appInstance.getMediaCasterStreams().remove(item);
+				item.shutdown(false);
+			}
+		}
+	}
 
 	class MediaCasterListener extends MediaCasterNotifyBase
 	{
@@ -284,17 +305,9 @@ public class ModuleStreamResolver extends ModuleBase
 			// Detect missing url and shut down mediaCaster otherwise we have to wait for it to time out.
 			if (mediaCaster instanceof LiveMediaStreamReceiver && !((LiveMediaStreamReceiver)mediaCaster).isTryConnect())
 			{
-				final LiveMediaStreamReceiver liveMediaStreamReceiver = (LiveMediaStreamReceiver)mediaCaster;
-				appInstance.getVHost().getThreadPool().execute(new Runnable() {
-
-					@Override
-					public void run()
-					{
-						MediaCasterStreamItem item = liveMediaStreamReceiver.getMediaCasterStreamItem();
-						appInstance.getMediaCasterStreams().remove(item);
-						item.shutdown(false);
-					}
-				});
+				if(debug)
+					logger.info(MODULE_NAME + ".onMediaCasterCreate shutting down mediaCaster due to no url: [" + appInstance.getContextStr() + "/" + mediaCaster.getMediaCasterId() + "]");
+				appInstance.getVHost().getThreadPool().execute(new MediaCasterShutdownRunner((LiveMediaStreamReceiver)mediaCaster));
 			}
 		}
 
@@ -349,9 +362,9 @@ public class ModuleStreamResolver extends ModuleBase
 			{
 				if(debug)
 				{
-					getLogger().info(ModuleStreamResolver.MODULE_NAME + "onConnectSuccess name: " + mediaCaster.getMediaCasterId());
-					getLogger().info(ModuleStreamResolver.MODULE_NAME + "onConnectSuccess isTryConnect: " + ((LiveMediaStreamReceiver)mediaCaster).isTryConnect());
-					getLogger().info(ModuleStreamResolver.MODULE_NAME + "onConnectSuccess isValid: " + mediaCaster.getMediaCasterStreamItem().isValid());
+					logger.info(ModuleStreamResolver.MODULE_NAME + "onConnectSuccess name: " + mediaCaster.getMediaCasterId());
+					logger.info(ModuleStreamResolver.MODULE_NAME + "onConnectSuccess isTryConnect: " + ((LiveMediaStreamReceiver)mediaCaster).isTryConnect());
+					logger.info(ModuleStreamResolver.MODULE_NAME + "onConnectSuccess isValid: " + mediaCaster.getMediaCasterStreamItem().isValid());
 				}
 				LiveMediaStreamReceiver liveMediaStreamReceiver = (LiveMediaStreamReceiver)mediaCaster;
 
@@ -391,14 +404,17 @@ public class ModuleStreamResolver extends ModuleBase
 					String packetizer = streamId.getLiveStreamPacketizer();
 					
 					if (debug)
-						logger.info(ModuleStreamResolver.MODULE_NAME + " **Resolving stream name: " + streamName);
+						logger.info(ModuleStreamResolver.MODULE_NAME + ".onMediaCasterCreate resolving stream name: [" + appInstance.getContextStr() + "/" + streamName + "]");
 					String newURL = lookupURL(streamName, packetizer);
 					if(StringUtils.isEmpty(newURL))
 					{
 						if (debug)
-							logger.info(ModuleStreamResolver.MODULE_NAME + " **Shutting down players: " + streamName);
+							logger.info(MODULE_NAME + ".onMediaCasterCreate shutting down players due to no mediaCaster url: [" + appInstance.getContextStr() + "/" + streamName + "]");
 						shutdownPlayers(mediaCaster);
+						if(debug)
+							logger.info(MODULE_NAME + ".onMediaCasterCreate shutting down mediaCaster due to no url: [" + appInstance.getContextStr() + "/" + mediaCaster.getMediaCasterId() + "]");
 						mediaCaster.setTryConnect(false);
+						appInstance.getVHost().getThreadPool().execute(new MediaCasterShutdownRunner((LiveMediaStreamReceiver)mediaCaster));
 					}
 					else
 					{
