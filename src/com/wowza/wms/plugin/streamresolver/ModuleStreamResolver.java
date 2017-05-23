@@ -252,7 +252,7 @@ public class ModuleStreamResolver extends ModuleBase
 			if(debug)
 				logger.info(MODULE_NAME + ".resolveStreamAlias getting url for [" + appInstance.getContextStr() + "/" + name + "] urls: " + urls.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 
-			if(isUrl(name))
+			if(isStreamUrl(name))
 				return name;
 
 			synchronized(lock)
@@ -271,7 +271,7 @@ public class ModuleStreamResolver extends ModuleBase
 			if(debug)
 				logger.info(MODULE_NAME + ".resolveStreamAlias2 getting url for [" + appInstance.getContextStr() + "/" + name + "] urls: " + urls.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 
-			if(isUrl(name))
+			if(isStreamUrl(name))
 				return name;
 			
 			synchronized(lock)
@@ -281,22 +281,6 @@ public class ModuleStreamResolver extends ModuleBase
 					logger.info(MODULE_NAME + ".resolveStreamAlias2 got url for [" + appInstance.getContextStr() + "/" + name + "]: url: " + url + ", urls: " + urls.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 			}
 			return StringUtils.isEmpty(url) ? "" : url;
-		}
-		
-		private boolean isUrl(String name)
-		{
-			if (name.indexOf("rtmp://") < 0 && 
-					name.indexOf("rtmps://") < 0 && 
-					name.indexOf("rtmpt://") < 0 && 
-					name.indexOf("rtmpe://") < 0 && 
-					name.indexOf("wowz://") < 0 && 
-					name.indexOf("wowze://") < 0 && 
-					name.indexOf("wowzs://") < 0 && 
-					name.indexOf("rtmpte://") < 0)
-			{
-				return true;
-			}
-			return false;
 		}
 	}
 	
@@ -595,18 +579,18 @@ public class ModuleStreamResolver extends ModuleBase
 						url = result.get();
 						if (url != null)
 						{
-							if (!url.toLowerCase().startsWith("rtmp") && !url.toLowerCase().startsWith("wowz"))
+							if (!isStreamUrl(url.toLowerCase()))
 							{
 								url = protocol + "://" + url;
 								url = url.trim();
+							}
+							if(debug)
+								logger.info(MODULE_NAME + ".Lookup.run() before adding url for [" + appInstance.getContextStr() + "/" + streamName + "] Lookup.url: " + url + ", urls: " + urls.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
+							synchronized(lock)
+							{
+								urls.put(streamName, url);
 								if(debug)
-									logger.info(MODULE_NAME + ".Lookup.run() before adding url for [" + appInstance.getContextStr() + "/" + streamName + "] Lookup.url: " + url + ", urls: " + urls.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
-								synchronized(lock)
-								{
-									urls.put(streamName, url);
-									if(debug)
-										logger.info(MODULE_NAME + ".Lookup.run() after adding url for [" + appInstance.getContextStr() + "/" + streamName + "] Lookup.url: " + url + ", urls: " + urls.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
-								}
+									logger.info(MODULE_NAME + ".Lookup.run() after adding url for [" + appInstance.getContextStr() + "/" + streamName + "] Lookup.url: " + url + ", urls: " + urls.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 							}
 							break;
 						}
@@ -943,5 +927,21 @@ public class ModuleStreamResolver extends ModuleBase
 		if(debug)
 			logger.info(MODULE_NAME + ".lookupUrl after lookup, returning url for [" + appInstance.getContextStr() + "/(" + nameContext + ":" + packetizer + ")] url: " + lookup.url, WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 		return StringUtils.isEmpty(lookup.url) ? "" : lookup.url;
+	}
+
+	private boolean isStreamUrl(String name)
+	{
+		if (name.indexOf("rtmp://") < 0 && 
+				name.indexOf("rtmps://") < 0 && 
+				name.indexOf("rtmpt://") < 0 && 
+				name.indexOf("rtmpe://") < 0 && 
+				name.indexOf("wowz://") < 0 && 
+				name.indexOf("wowze://") < 0 && 
+				name.indexOf("wowzs://") < 0 && 
+				name.indexOf("rtmpte://") < 0)
+		{
+			return true;
+		}
+		return false;
 	}
 }
