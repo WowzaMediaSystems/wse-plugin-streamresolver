@@ -79,7 +79,7 @@ public class ModuleStreamResolver extends ModuleBase
 					return name;
 			}
 			String ret = getStreamName(streamName);
-			// AppInstances will stay loaded intil there is at least 1 valid connection. 
+			// AppInstances will stay loaded until there is at least 1 valid connection. 
 			// Increment the connection count to allow the appInstnace to shut down if there are no other connection attempts.
 			if(ret == null && appInstance.getClientCountTotal() <= 0)
 			{
@@ -104,7 +104,7 @@ public class ModuleStreamResolver extends ModuleBase
 					return name;
 			}
 			String ret = getStreamName(streamName);
-			// AppInstances will stay loaded intil there is at least 1 valid connection. 
+			// AppInstances will stay loaded until there is at least 1 valid connection. 
 			// Increment the connection count to allow the appInstnace to shut down if there are no other connection attempts.
 			if(ret == null && appInstance.getClientCountTotal() <= 0)
 			{
@@ -146,7 +146,7 @@ public class ModuleStreamResolver extends ModuleBase
 				repeater = resolveRepeater(httpSession);
 			
 			String ret = getStreamName(streamName, packetizer, repeater);
-			// AppInstances will stay loaded intil there is at least 1 valid connection. 
+			// AppInstances will stay loaded until there is at least 1 valid connection. 
 			// Increment the connection count to allow the appInstnace to shut down if there are no other connection attempts.
 			if(ret == null && appInstance.getClientCountTotal() <= 0)
 			{
@@ -203,7 +203,7 @@ public class ModuleStreamResolver extends ModuleBase
 					return name;
 			}
 			String ret = getStreamName(streamName);
-			// AppInstances will stay loaded intil there is at least 1 valid connection. 
+			// AppInstances will stay loaded until there is at least 1 valid connection. 
 			// Increment the connection count to allow the appInstnace to shut down if there are no other connection attempts.
 			if(ret == null && appInstance.getClientCountTotal() <= 0)
 			{
@@ -687,8 +687,7 @@ public class ModuleStreamResolver extends ModuleBase
 				}
 				catch (Exception e)
 				{
-					// TODO Auto-generated catch block
-					e.printStackTrace();
+					logger.error(MODULE_NAME + "[sendUDPMessage] error parsing response from host :: " + host + " :: " + response, e);
 				}
 			}
 			return null;
@@ -747,10 +746,6 @@ public class ModuleStreamResolver extends ModuleBase
 
 		defaultApplicationName = appInstance.getProperties().getPropertyStr(MODULE_PROPERTY_PREFIX + "OriginApplicationName", appInstance.getApplication().getName());
 		defaultApplicationInstanceName = appInstance.getProperties().getPropertyStr(MODULE_PROPERTY_PREFIX + "OriginApplicationInstanceName", appInstance.getName());		
-		
-//		appInstance.getVHost().getMediaCasterList().getMediaCasterDef("liverepeater").setBaseClass("com.wowza.wms.plugin.streamresolver.StreamResolverLiveMediaStreamReceiver");
-//		appInstance.getVHost().getMediaCasterList().getMediaCasterDef("httprepeater").setBaseClass("com.wowza.wms.plugin.streamresolver.StreamResolverLiveMediaStreamReceiver");
-//		appInstance.setMediaCasterValidator(new Validator(appInstance.getMediaCasterValidator()));
 		
 		appInstance.setStreamNameAliasProvider(new AliasProvider());
 		appInstance.addMediaCasterListener(new MediaCasterListener());
@@ -931,17 +926,6 @@ public class ModuleStreamResolver extends ModuleBase
 
 	private boolean isStreamUrl(String name)
 	{
-		if (name.indexOf("rtmp://") < 0 && 
-				name.indexOf("rtmps://") < 0 && 
-				name.indexOf("rtmpt://") < 0 && 
-				name.indexOf("rtmpe://") < 0 && 
-				name.indexOf("wowz://") < 0 && 
-				name.indexOf("wowze://") < 0 && 
-				name.indexOf("wowzs://") < 0 && 
-				name.indexOf("rtmpte://") < 0)
-		{
-			return false;
-		}
-		return true;
+		return name.matches("^(rtmp|wowz)[ste]*://.+$");
 	}
 }
