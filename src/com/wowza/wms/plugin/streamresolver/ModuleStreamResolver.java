@@ -940,8 +940,8 @@ public class ModuleStreamResolver extends ModuleBase
 				name.indexOf("wowzs://") < 0 && 
 				name.indexOf("rtmpte://") < 0)
 		{
-			return true;
+			return false;
 		}
-		return false;
+		return true;
 	}
 }
