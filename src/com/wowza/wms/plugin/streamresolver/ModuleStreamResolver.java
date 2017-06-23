@@ -704,7 +704,7 @@ public class ModuleStreamResolver extends ModuleBase
 	public static String MODULE_PROPERTY_PREFIX = "wowzaResolver";
 	private static final int _UDP_PORT = 9777;
 	private static final int _UDP_REQUEST_TIMEOUT = 2000;
-	private static final String _PROTOCOL = "rtmp";
+	private static final String _PROTOCOL = "wowz";
 
 	private Object lock = new Object();
 	private Map<String, Lookup> lookups = new HashMap<String, Lookup>();
