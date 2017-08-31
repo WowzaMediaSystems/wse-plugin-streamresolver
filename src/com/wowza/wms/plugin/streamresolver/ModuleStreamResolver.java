@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -29,7 +30,9 @@ import org.w3c.dom.Element;
 import com.wowza.util.JSON;
 import com.wowza.util.StringUtils;
 import com.wowza.util.XMLUtils;
-import com.wowza.wms.application.*;
+import com.wowza.wms.application.ApplicationInstance;
+import com.wowza.wms.application.IApplicationInstance;
+import com.wowza.wms.application.WMSProperties;
 import com.wowza.wms.bootstrap.Bootstrap;
 import com.wowza.wms.client.IClient;
 import com.wowza.wms.httpstreamer.cupertinostreaming.httpstreamer.HTTPStreamerSessionCupertino;
@@ -42,7 +45,6 @@ import com.wowza.wms.logging.WMSLogger;
 import com.wowza.wms.logging.WMSLoggerFactory;
 import com.wowza.wms.logging.WMSLoggerIDs;
 import com.wowza.wms.mediacaster.IMediaCaster;
-import com.wowza.wms.mediacaster.IMediaCasterValidateMediaCaster;
 import com.wowza.wms.mediacaster.MediaCaster;
 import com.wowza.wms.mediacaster.MediaCasterItem;
 import com.wowza.wms.mediacaster.MediaCasterNotifyBase;
@@ -67,18 +69,10 @@ public class ModuleStreamResolver extends ModuleBase
 		@Override
 		public String resolvePlayAlias(IApplicationInstance appInstance, String name)
 		{
-			String streamName = name;
-			String streamExt = MediaStream.BASE_STREAM_EXT;
-			if (streamName != null)
-			{
-				String[] streamDecode = ModuleUtils.decodeStreamExtension(streamName, streamExt);
-				streamName = streamDecode[0];
-				streamExt = streamDecode[1];
-
-				if (appInstance.getMediaReaderContentType(streamExt) == IMediaReader.CONTENTTYPE_MEDIALIST)
-					return name;
-			}
-			String ret = getStreamName(streamName);
+			if(isMediaList(name))
+				return name;
+			
+			String ret = getStreamName(name);
 			// AppInstances will stay loaded until there is at least 1 valid connection. 
 			// Increment the connection count to allow the appInstnace to shut down if there are no other connection attempts.
 			if(ret == null && appInstance.getClientCountTotal() <= 0)
@@ -92,18 +86,10 @@ public class ModuleStreamResolver extends ModuleBase
 		@Override
 		public String resolvePlayAlias(IApplicationInstance appInstance, String name, IClient client)
 		{
-			String streamName = name;
-			String streamExt = MediaStream.BASE_STREAM_EXT;
-			if (streamName != null)
-			{
-				String[] streamDecode = ModuleUtils.decodeStreamExtension(streamName, streamExt);
-				streamName = streamDecode[0];
-				streamExt = streamDecode[1];
+			if(isMediaList(name))
+				return name;
 
-				if (appInstance.getMediaReaderContentType(streamExt) == IMediaReader.CONTENTTYPE_MEDIALIST)
-					return name;
-			}
-			String ret = getStreamName(streamName);
+			String ret = getStreamName(name);
 			// AppInstances will stay loaded until there is at least 1 valid connection. 
 			// Increment the connection count to allow the appInstnace to shut down if there are no other connection attempts.
 			if(ret == null && appInstance.getClientCountTotal() <= 0)
@@ -117,17 +103,9 @@ public class ModuleStreamResolver extends ModuleBase
 		@Override
 		public String resolvePlayAlias(IApplicationInstance appInstance, String name, IHTTPStreamerSession httpSession)
 		{
-			String streamName = name;
-			String streamExt = MediaStream.BASE_STREAM_EXT;
-			if (streamName != null)
-			{
-				String[] streamDecode = ModuleUtils.decodeStreamExtension(streamName, streamExt);
-				streamName = streamDecode[0];
-				streamExt = streamDecode[1];
+			if(isMediaList(name))
+				return name;
 
-				if (appInstance.getMediaReaderContentType(streamExt) == IMediaReader.CONTENTTYPE_MEDIALIST)
-					return name;
-			}
 			String packetizer = null;
 			String repeater = null;
 			if(httpSession != null && httpSession.getHTTPStreamerAdapter() != null)
@@ -145,15 +123,44 @@ public class ModuleStreamResolver extends ModuleBase
 			if(repeater == null)
 				repeater = resolveRepeater(httpSession);
 			
-			String ret = getStreamName(streamName, packetizer, repeater);
+			String streamName = getStreamName(name, packetizer, repeater);
 			// AppInstances will stay loaded until there is at least 1 valid connection. 
 			// Increment the connection count to allow the appInstnace to shut down if there are no other connection attempts.
-			if(ret == null && appInstance.getClientCountTotal() <= 0)
+			if(streamName == null && appInstance.getClientCountTotal() <= 0)
 			{
 				appInstance.incClientCountTotal();
 				((ApplicationInstance)appInstance).setClientRemoveTime(System.currentTimeMillis());
 			}
-			return ret;
+			
+			// need to manually register players for smil
+			// [cupertinostreamingpacketizer|cupertinostreamingrepeater]cupertinostreamingpacketizer_myStream
+			String mediaCasterId = "[" + packetizer + "|" + repeater + "]" + streamName;
+			if (debug)
+				logger.info(MODULE_NAME + ".resolvePlayAlias[HttpStreamerSession] before adding player for [" + appInstance.getContextStr() + "/" + mediaCasterId + "] players: " + players.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
+			IMediaStream stream = httpSession.getStream();
+			if(stream != null && !stream.isMediaCasterPlay())
+			{
+				IMediaStreamPlay player = stream.getPlayer();
+				if(player != null)
+				{
+					synchronized(lock)
+					{
+						List<IMediaStreamPlay> playerList = players.get(mediaCasterId);
+						if (playerList == null)
+						{
+							playerList = new ArrayList<IMediaStreamPlay>();
+							players.put(mediaCasterId, playerList);
+						}
+						if(!playerList.contains(player))
+						{
+							playerList.add(player);
+							if (debug)
+								logger.info(MODULE_NAME + ".resolvePlayAlias[HttpStreamerSession] after adding player for [" + appInstance.getContextStr() + "/" + mediaCasterId + "] players: " + players.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
+						}	
+					}
+				}
+			}
+			return streamName;
 		}
 
 		private String resolvePacketizer(IHTTPStreamerSession httpSession)
@@ -191,18 +198,10 @@ public class ModuleStreamResolver extends ModuleBase
 		@Override
 		public String resolvePlayAlias(IApplicationInstance appInstance, String name, RTPSession rtpSession)
 		{
-			String streamName = name;
-			String streamExt = MediaStream.BASE_STREAM_EXT;
-			if (streamName != null)
-			{
-				String[] streamDecode = ModuleUtils.decodeStreamExtension(streamName, streamExt);
-				streamName = streamDecode[0];
-				streamExt = streamDecode[1];
+			if(isMediaList(name))
+				return name;
 
-				if (appInstance.getMediaReaderContentType(streamExt) == IMediaReader.CONTENTTYPE_MEDIALIST)
-					return name;
-			}
-			String ret = getStreamName(streamName);
+			String ret = getStreamName(name);
 			// AppInstances will stay loaded until there is at least 1 valid connection. 
 			// Increment the connection count to allow the appInstnace to shut down if there are no other connection attempts.
 			if(ret == null && appInstance.getClientCountTotal() <= 0)
@@ -221,12 +220,15 @@ public class ModuleStreamResolver extends ModuleBase
 		private String getStreamName(String name, String packetizer, String repeater)
 		{
 			name = appInstance.getProperties().getPropertyStr(MODULE_PROPERTY_PREFIX + "OriginStreamName", name);
+			
+			name = ModuleUtils.decodeStreamExtension(name, null)[0];
+
 			String nameContext = packetizer != null ? packetizer + "_" + name : name;
 
 			if (debug)
 				logger.info(ModuleStreamResolver.MODULE_NAME + ".getStreamName[" + nameContext + "] ");
 			
-			MediaCasterStreamItem mediaCasterStreamItem = appInstance.getMediaCasterStreams().getMediaCaster(name, packetizer, repeater);
+			MediaCasterStreamItem mediaCasterStreamItem = appInstance.getMediaCasterStreams().getMediaCaster(nameContext, packetizer, repeater);
 			IMediaCaster mediaCaster = null;
 			if(mediaCasterStreamItem != null)
 			{
@@ -238,7 +240,7 @@ public class ModuleStreamResolver extends ModuleBase
 						return nameContext;
 				}
 			}
-			String url = lookupURL(nameContext, packetizer);
+			String url = lookupURL(nameContext, packetizer, false);
 			if(!StringUtils.isEmpty(url) && mediaCaster != null && mediaCaster instanceof LiveMediaStreamReceiver)
 				((LiveMediaStreamReceiver)mediaCaster).resolveURL();
 			
@@ -252,7 +254,7 @@ public class ModuleStreamResolver extends ModuleBase
 			if(debug)
 				logger.info(MODULE_NAME + ".resolveStreamAlias getting url for [" + appInstance.getContextStr() + "/" + name + "] urls: " + urls.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 
-			if(isStreamUrl(name))
+			if(isStreamUrl(name) || isMediaList(name))
 				return name;
 
 			synchronized(lock)
@@ -271,7 +273,7 @@ public class ModuleStreamResolver extends ModuleBase
 			if(debug)
 				logger.info(MODULE_NAME + ".resolveStreamAlias2 getting url for [" + appInstance.getContextStr() + "/" + name + "] urls: " + urls.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 
-			if(isStreamUrl(name))
+			if(isStreamUrl(name) || isMediaList(name))
 				return name;
 			
 			synchronized(lock)
@@ -329,13 +331,13 @@ public class ModuleStreamResolver extends ModuleBase
 					logger.info(MODULE_NAME + ".onRegisterPlayer before adding player for [" + appInstance.getContextStr() + "/" + mediaCasterId + "] players: " + players.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 				synchronized(lock)
 				{
-					List<IMediaStreamPlay> localPlayers = players.get(mediaCasterId);
-					if (localPlayers == null)
+					List<IMediaStreamPlay> playerList = players.get(mediaCasterId);
+					if (playerList == null)
 					{
-						localPlayers = new ArrayList<IMediaStreamPlay>();
-						players.put(mediaCasterId, localPlayers);
+						playerList = new ArrayList<IMediaStreamPlay>();
+						players.put(mediaCasterId, playerList);
 					}
-					localPlayers.add(player);
+					playerList.add(player);
 					if(debug)
 						logger.info(MODULE_NAME + ".onRegisterPlayer after adding player for [" + appInstance.getContextStr() + "/" + mediaCasterId + "] players: " + players.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 				}
@@ -352,10 +354,10 @@ public class ModuleStreamResolver extends ModuleBase
 					logger.info(MODULE_NAME + ".onUnRegisterPlayer before removing player for [" + appInstance.getContextStr() + "/" + mediaCasterId + "] players: " + players.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 				synchronized(lock)
 				{
-					List<IMediaStreamPlay> localPlayers = players.get(mediaCasterId);
-					if (localPlayers != null)
+					List<IMediaStreamPlay> playerList = players.get(mediaCasterId);
+					if (playerList != null)
 					{
-						localPlayers.remove(player);
+						playerList.remove(player);
 					}
 					if(debug)
 						logger.info(MODULE_NAME + ".onUnRegisterPlayer after removing player for [" + appInstance.getContextStr() + "/" + mediaCasterId + "] players: " + players.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
@@ -413,7 +415,7 @@ public class ModuleStreamResolver extends ModuleBase
 					
 					if (debug)
 						logger.info(ModuleStreamResolver.MODULE_NAME + ".onMediaCasterCreate resolving stream name: [" + appInstance.getContextStr() + "/" + streamName + "]");
-					String newURL = lookupURL(streamName, packetizer);
+					String newURL = lookupURL(streamName, packetizer, true);
 					if(StringUtils.isEmpty(newURL))
 					{
 						if (debug)
@@ -434,18 +436,17 @@ public class ModuleStreamResolver extends ModuleBase
 		
 		private void shutdownPlayers(final IMediaCaster mediaCaster)
 		{
-			System.out.println("Shutting down MediaCasterPlayers. Waiting for lock");
 			String mediaCasterId = mediaCaster.getMediaCasterId();
-			List<IMediaStreamPlay> localPlayers = null;
+			List<IMediaStreamPlay> playerList = null;
 			if(debug)
 				logger.info(MODULE_NAME + ".shutdownPlayers before removing player list for [" + appInstance.getContextStr() + "/" + mediaCasterId + "] players: " + players.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 			synchronized(lock)
 			{
-				localPlayers = players.remove(mediaCasterId);
+				playerList = players.remove(mediaCasterId);
 				if(debug)
 					logger.info(MODULE_NAME + ".shutdownPlayers after removing player list for [" + appInstance.getContextStr() + "/" + mediaCasterId + "] players: " + players.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 			}
-			if (localPlayers != null)
+			if (playerList != null)
 			{
 				if(debug)
 					logger.info(MODULE_NAME + ".shutdownPlayers waiting for lock for [" + appInstance.getContextStr() + "/" + mediaCasterId + "]", WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
@@ -455,7 +456,7 @@ public class ModuleStreamResolver extends ModuleBase
 				{
 					if(debug)
 						logger.info(MODULE_NAME + ".shutdownPlayers got lock for [" + appInstance.getContextStr() + "/" + mediaCasterId + "]", WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
-					for (IMediaStreamPlay player : localPlayers)
+					for (IMediaStreamPlay player : playerList)
 					{
 						IMediaStream stream = player.getParent();
 						if (stream != null)
@@ -745,10 +746,33 @@ public class ModuleStreamResolver extends ModuleBase
 		}
 
 		defaultApplicationName = appInstance.getProperties().getPropertyStr(MODULE_PROPERTY_PREFIX + "OriginApplicationName", appInstance.getApplication().getName());
-		defaultApplicationInstanceName = appInstance.getProperties().getPropertyStr(MODULE_PROPERTY_PREFIX + "OriginApplicationInstanceName", appInstance.getName());		
+		defaultApplicationInstanceName = appInstance.getProperties().getPropertyStr(MODULE_PROPERTY_PREFIX + "OriginApplicationInstanceName", appInstance.getName());
+		
+		logger.info(MODULE_NAME + ".onAppStart [" + appInstance.getContextStr() + " : build #42]");
 		
 		appInstance.setStreamNameAliasProvider(new AliasProvider());
 		appInstance.addMediaCasterListener(new MediaCasterListener());
+	}
+	
+	public void onHTTPSessionDestroy(IHTTPStreamerSession httpSession)
+	{
+		// remove players added in resolvePlayAlias methods. Other players will be removed in onUnRegisterPlayer
+		IMediaStream stream = httpSession.getStream();
+		if(stream != null && !stream.isMediaCasterPlay())
+		{
+			IMediaStreamPlay player = stream.getPlayer();
+			if(player != null)
+			{
+				synchronized(lock)
+				{
+					Iterator<String> iter = players.keySet().iterator();
+					while (iter.hasNext())
+					{
+						players.get(iter.next()).remove(player);
+					}
+				}
+			}
+		}
 	}
 
 	private String getNewURLs()
@@ -884,13 +908,21 @@ public class ModuleStreamResolver extends ModuleBase
 	}
 
 
-	private String lookupURL(String nameContext, String packetizer)
+	private String lookupURL(String nameContext, String packetizer, boolean forceNewLookup)
 	{
 		Lookup lookup = null;	
 		if(debug)
 			logger.info(MODULE_NAME + ".lookupUrl Looking up url for [" + appInstance.getContextStr() + "/(" + nameContext + ":" + packetizer + ")] lookups: " + lookups.toString() + ", urls: " + urls.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 		synchronized(lock)
 		{
+			if(!forceNewLookup && urls.containsKey(nameContext))
+			{
+				String url = urls.get(nameContext);
+				if(debug)
+					logger.info(MODULE_NAME + ".lookupUrl from urls list, returning url for [" + appInstance.getContextStr() + "/(" + nameContext + ":" + packetizer + ")] url: " + url, WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
+				return url;
+			}
+			
 			lookup = lookups.get(nameContext);
 			if(lookup == null)
 			{
@@ -899,13 +931,6 @@ public class ModuleStreamResolver extends ModuleBase
 				lookups.put(nameContext, lookup);
 				if(debug)
 					logger.info(MODULE_NAME + ".lookupUrl adding new lookup url for [" + appInstance.getContextStr() + "/(" + nameContext + ":" + packetizer + ")] lookup: " + lookup.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
-			}
-			else if(urls.containsKey(nameContext))
-			{
-				String url = urls.get(nameContext);
-				if(debug)
-					logger.info(MODULE_NAME + ".lookupUrl from urls list, returning url for [" + appInstance.getContextStr() + "/(" + nameContext + ":" + packetizer + ")] url: " + url, WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
-				return url;
 			}
 		}
 		try
@@ -927,5 +952,21 @@ public class ModuleStreamResolver extends ModuleBase
 	private boolean isStreamUrl(String name)
 	{
 		return name.matches("^(rtmp|wowz)[ste]*://.+$");
+	}
+	
+	private boolean isMediaList(String streamName)
+	{
+		String streamExt = MediaStream.BASE_STREAM_EXT;
+		if (streamName != null)
+		{
+			if (streamName.toLowerCase().endsWith(".smil") || streamName.toLowerCase().endsWith(".smi"))
+				streamExt = MediaStream.SMIL_STREAM_EXT;
+			
+			String[] streamDecode = ModuleUtils.decodeStreamExtension(streamName, streamExt);
+			streamName = streamDecode[0];
+			streamExt = streamDecode[1];
+		}
+
+		return appInstance.getMediaReaderContentType(streamExt) == IMediaReader.CONTENTTYPE_MEDIALIST;
 	}
 }
