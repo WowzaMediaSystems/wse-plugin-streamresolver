@@ -1,0 +1,85 @@
+Build 42
+	* Added support for mediaLists so that players are associated correctly with child streams
+	* Improved mediaList detection to reduce the number of lookups when playing a mediaList stream
+	* Improved loop workflow to further reduce the number of lookups
+
+Build 41
+	* Changed default protocol to wowz
+
+Build 40
+	* Modified url check to use regex instead of a series of indexOf checks
+	* Added logging for error parsing response from origin
+	* Fixed typos in some comments and removed old commented out code
+
+Build 39
+	* Fixed bug where url check was returning the wrong value
+
+Build 38
+	* Fixed bug in ModuleStreamResolver where returned domain name was being mistaken for the protocol if it starts with `wowz` or `rtmp`
+
+Build 37
+	* Updated ModuleStreamResolver to check if the name passed to resolveStreamAlias is already a Url
+
+Build 36
+	* Modified ModuleStreamResolver to shutdown the mediaCaster once its url i skull so we don’t need to wait for it to time out
+
+Build 35
+	* Added extra debug logging around locks
+
+Build 34
+	* Fixed NPE in resolvePlayAlias method when checkAvailability was called with a  phantom session
+	* Set clientRemoveTime when resolvePlayAlias is going to return null
+
+Build 33
+	* Another re-write of ModuleStreamResolver to try to fix reconnection problem
+	* Updated UDPServer to check if the application is loaded before checking for stream (prevents it from inadvertently being loaded)
+	* Updated logging in UDPClient
+
+Build 31
+	* Updated Message format to send & receive JSON
+	* Updated UDPClient to catch & log timeouts properly
+	* Updated UDPServer to return JSON
+	* Updated UDPServer to check for HTTP streams separate to RTMP streams
+	* Rewrite of ModuleStreamResolver
+		* Handle RTMP & HTTP streams separately
+		* Shutdown current mediaCaster and disconnect all players when last source fails
+		* Re-resolve sources when player reconnects after forced shutdown
+	* NOTE: this version is not compatible with any previous versions and all servers must be updated.
+
+Build 30
+	* Working on getting resolver to retry after a failure
+
+Build 29
+	* Removed error logging (where not applicable) and added debug statement prior to file url printout.
+
+Build 28
+	* Updated module to fix situation where failed sources aren't removed from the mediaCaster urls
+
+Build 27
+	* Fixed logging to correctly check if logger is set to debug level
+
+Build 25
+	* Added debug property to control logging level. Debug logging is off by default. Add wowzaResolverDebugLog property to Application Properties to enable
+	* Updated Server Listener logging to make repetitive logging statements debug level only. Debug logging is off by default. Add wowzaSourceStreamUDPListenerDebug property to Server Properties to enable
+
+Build 22
+	* Cleaned up unused imports
+
+build 21
+	* Reverted update to UDPClient allowing local port to be specified
+
+Build 20
+	* Added support to detect stream name prefixes so MediaLists work properly
+	* Added support for variables when defining the origin hosts file path
+	* Fixed problem where an error response wasn't being handled correctly
+	* Updated UDPClient to allow the local port to be defined as well as the remote port.  Remote port can now be set along with the remote host name using host:port notation
+	* Fixed a problem with UDPServer where the receive buffer wasn't getting cleared between requests and was causing incorrect stream name lookups on some requests
+
+Build 19
+	* Updated UDP servers to correctly log remote connection details
+
+Build 18
+	* Added extra debug logging around the udp messages
+
+Build 1
+	* Initial commit
