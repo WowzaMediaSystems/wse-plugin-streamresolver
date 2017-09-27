@@ -1,3 +1,6 @@
+Build 43
+	* Added ip address lookup for origin serverListener so the origin will still answer requests if `wowzaSourceStreamHostName` property isn't set. `wowzaSourceStreamHostName` can still be used to override the default origin ip address
+
 Build 42
 	* Added support for mediaLists so that players are associated correctly with child streams
 	* Improved mediaList detection to reduce the number of lookups when playing a mediaList stream

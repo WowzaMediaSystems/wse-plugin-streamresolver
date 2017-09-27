@@ -1,5 +1,5 @@
 /*
- * This code and all components (c) Copyright 2006 - 2016, Wowza Media Systems, LLC. All rights reserved.
+ * This code and all components (c) Copyright 2006 - 2017, Wowza Media Systems, LLC. All rights reserved.
  * This code is licensed pursuant to the Wowza Public License version 1.0, available at www.wowza.com/legal.
  */
 package com.wowza.wms.plugin.streamresolver;
@@ -748,7 +748,7 @@ public class ModuleStreamResolver extends ModuleBase
 		defaultApplicationName = appInstance.getProperties().getPropertyStr(MODULE_PROPERTY_PREFIX + "OriginApplicationName", appInstance.getApplication().getName());
 		defaultApplicationInstanceName = appInstance.getProperties().getPropertyStr(MODULE_PROPERTY_PREFIX + "OriginApplicationInstanceName", appInstance.getName());
 		
-		logger.info(MODULE_NAME + ".onAppStart [" + appInstance.getContextStr() + " : build #42]");
+		logger.info(MODULE_NAME + ".onAppStart [" + appInstance.getContextStr() + " : build #43]");
 		
 		appInstance.setStreamNameAliasProvider(new AliasProvider());
 		appInstance.addMediaCasterListener(new MediaCasterListener());
