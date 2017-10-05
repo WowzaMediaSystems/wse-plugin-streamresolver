@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletionService;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -539,6 +540,7 @@ public class ModuleStreamResolver extends ModuleBase
 		
 		Lookup(String streamName, String packetizer)
 		{
+			super(MODULE_NAME + ".Lookup [" + appInstance.getContextStr() + "/" + streamName + "]");
 			startTime = System.currentTimeMillis();
 			this.streamName = streamName;
 			if(packetizer != null && streamName.startsWith(packetizer))
@@ -555,7 +557,7 @@ public class ModuleStreamResolver extends ModuleBase
 		public void run()
 		{
 			final List<Future<String>> futures = new ArrayList<Future<String>>();
-			final CompletionService<String> ecs = new ExecutorCompletionService<String>(Executors.newCachedThreadPool());
+			final CompletionService<String> ecs = new ExecutorCompletionService<String>(executor);
 
 			try
 			{
@@ -706,7 +708,9 @@ public class ModuleStreamResolver extends ModuleBase
 	private static final int _UDP_PORT = 9777;
 	private static final int _UDP_REQUEST_TIMEOUT = 2000;
 	private static final String _PROTOCOL = "wowz";
-
+	
+	private static Executor executor = Executors.newCachedThreadPool();
+	
 	private Object lock = new Object();
 	private Map<String, Lookup> lookups = new HashMap<String, Lookup>();
 	private Map<String, String> urls = new HashMap<String, String>();
@@ -748,7 +752,7 @@ public class ModuleStreamResolver extends ModuleBase
 		defaultApplicationName = appInstance.getProperties().getPropertyStr(MODULE_PROPERTY_PREFIX + "OriginApplicationName", appInstance.getApplication().getName());
 		defaultApplicationInstanceName = appInstance.getProperties().getPropertyStr(MODULE_PROPERTY_PREFIX + "OriginApplicationInstanceName", appInstance.getName());
 		
-		logger.info(MODULE_NAME + ".onAppStart [" + appInstance.getContextStr() + " : build #43]");
+		logger.info(MODULE_NAME + ".onAppStart [" + appInstance.getContextStr() + " : build #44]");
 		
 		appInstance.setStreamNameAliasProvider(new AliasProvider());
 		appInstance.addMediaCasterListener(new MediaCasterListener());
