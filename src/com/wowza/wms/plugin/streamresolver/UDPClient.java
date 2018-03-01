@@ -59,7 +59,7 @@ public class UDPClient
 			DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
 			clientSocket.receive(receivePacket);
 
-			String responseString = new String(receivePacket.getData());
+			String responseString = new String(receivePacket.getData(), receivePacket.getOffset(), receivePacket.getLength());
 			if (debug)
 				logger.info(ServerListenerLocateSourceStream.MODULE_NAME + "[UDPClient] FROM SERVER:" + responseString + " from server::" + receivePacket.getSocketAddress());
 

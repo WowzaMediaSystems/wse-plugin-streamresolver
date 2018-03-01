@@ -100,7 +100,7 @@ public class UDPServer
 
 				DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
 				serverSocket.receive(receivePacket);
-				String message = new String(receivePacket.getData());
+				String message = new String(receivePacket.getData(), receivePacket.getOffset(), receivePacket.getLength());
 				if (debug)
 					logger.info(ServerListenerLocateSourceStream.MODULE_NAME + "[UDPServer] listenForRequests::received message::" + message + " from server::" + receivePacket.getSocketAddress());
 
