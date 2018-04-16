@@ -12,8 +12,12 @@ import java.util.List;
 
 import com.wowza.util.JSON;
 import com.wowza.util.StringUtils;
+import com.wowza.wms.application.ApplicationInstance;
 import com.wowza.wms.application.IApplication;
 import com.wowza.wms.application.IApplicationInstance;
+import com.wowza.wms.dvr.DvrStreamManagerUtils;
+import com.wowza.wms.dvr.IDvrConstants;
+import com.wowza.wms.dvr.IDvrStreamManager;
 import com.wowza.wms.logging.WMSLogger;
 import com.wowza.wms.stream.MediaStreamMap;
 import com.wowza.wms.vhost.IVHost;
@@ -46,6 +50,8 @@ public class UDPServer
 		{
 			logger.info(ServerListenerLocateSourceStream.MODULE_NAME + "[UDPServer] getStreamOrigin::" + streamName);
 		}
+		
+		boolean isDvr = packetizer.equalsIgnoreCase("dvrstreamingpacketizer");
 
 		@SuppressWarnings("unchecked")
 		List<String> vhostNames = VHostSingleton.getVHostNames();
@@ -57,7 +63,7 @@ public class UDPServer
 				String vhostName = vhostIterator.next();
 				IVHost vhost = VHostSingleton.getInstance(vhostName);
 				
-				if(vhost.isApplicationLoaded(appName))
+				if(vhost.isApplicationLoaded(appName) || isDvr)
 				{
 					IApplication application = vhost.getApplication(appName);
 					if (application != null)
@@ -65,10 +71,39 @@ public class UDPServer
 						IApplicationInstance appInstance = application.getAppInstance(appInstanceName);
 						if (appInstance != null)
 						{
-							MediaStreamMap streams = appInstance.getStreams();
-							if ((!StringUtils.isEmpty(packetizer) && streams.getLiveStreamPacketizer(streamName, packetizer, false) != null) || streams.getStream(streamName) != null)
+							// AppInstances will stay loaded until there is at least 1 valid connection. 
+							// Increment the connection count to allow the appInstnace to shut down if there are no other connection attempts.
+							if(appInstance.getClientCountTotal() <= 0)
 							{
-								String server = "{server: \"" + publicHostName + "/" + appName + "/" + appInstanceName + "/" + streamName + "\"}";
+								appInstance.incClientCountTotal();
+								((ApplicationInstance)appInstance).setClientRemoveTime(System.currentTimeMillis());
+							}
+							
+							MediaStreamMap streams = appInstance.getStreams();
+							boolean found = false;
+							boolean isLive = streams.getStream(streamName) != null;
+							if(StringUtils.isEmpty(packetizer) && isLive)
+							{
+								found = true;
+							}
+							else if(!StringUtils.isEmpty(packetizer))
+							{
+								if(isDvr)
+								{
+									boolean dvrAllowOnlyLiveStream = appInstance.getDvrProperties().getPropertyBoolean(IDvrConstants.PROPERTY_STREAM_ONLY_LIVE_STREAMS, false);
+									IDvrStreamManager dvrMgr = DvrStreamManagerUtils.getStreamManager(appInstance, packetizer, streamName, !dvrAllowOnlyLiveStream);
+									if(dvrMgr != null)
+									{
+										found = true;
+									}
+								}
+								else if(streams.getLiveStreamPacketizer(streamName, packetizer, false) != null && isLive)
+									found = true;
+							}
+							
+							if (found)
+							{
+								String server = "{server: \"" + publicHostName + "/" + appName + "/" + appInstanceName + "/" + streamName + "\"" + (isDvr ? ", isLive: " + isLive : "") + "}";
 	
 								if (debug)
 									logger.info(ServerListenerLocateSourceStream.MODULE_NAME + "[UDPServer] server::" + server);

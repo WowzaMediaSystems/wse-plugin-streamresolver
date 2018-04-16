@@ -109,13 +109,24 @@ public class ModuleStreamResolver extends ModuleBase
 
 			String packetizer = null;
 			String repeater = null;
-			if(httpSession != null && httpSession.getHTTPStreamerAdapter() != null)
+			if(httpSession != null)
 			{
-				HTTPStreamerItem item = httpSession.getHTTPStreamerAdapter().getHTTPStreamerItem();
-				if(item != null)
+				String queryStr = httpSession.getQueryStr();
+				if((!StringUtils.isEmpty(queryStr) && queryStr.toLowerCase().contains("dvr")) || name.startsWith("dvrstreamingpacketizer_"))
 				{
-					packetizer = item.getLiveStreamPacketizer();
-					repeater = item.getLiveStreamRepeater();
+					// strip off the packetizer name here because it will be added back later.
+					name = name.replace("dvrstreamingpacketizer_", "");
+					packetizer = "dvrstreamingpacketizer";
+					repeater = "dvrstreamingrepeater";
+				}
+				else if(httpSession.getHTTPStreamerAdapter() != null)
+				{
+					HTTPStreamerItem item = httpSession.getHTTPStreamerAdapter().getHTTPStreamerItem();
+					if(item != null)
+					{
+						packetizer = item.getLiveStreamPacketizer();
+						repeater = item.getLiveStreamRepeater();
+					}
 				}
 			}
 			
