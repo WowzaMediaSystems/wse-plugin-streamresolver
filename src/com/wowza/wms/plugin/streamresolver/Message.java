@@ -14,6 +14,6 @@ public class Message
 	@Override
 	public String toString()
 	{
-		return "{streamName: \"" + streamName + "\", appName: \"" + appName + "\", appInstanceName: \"" + appInstance + "\", packetizerName: \"" + packetizer + "\"}";
+		return "{streamName: \"" + streamName + "\", appName: \"" + appName + "\", appInstanceName: \"" + appInstance + "\", packetizerName: \"" + (packetizer != null ? packetizer : "") + "\"}";
 	}
 }

@@ -107,34 +107,33 @@ public class ModuleStreamResolver extends ModuleBase
 			if(isMediaList(name))
 				return name;
 
-			String packetizer = null;
-			String repeater = null;
-			if(httpSession != null)
-			{
-				String queryStr = httpSession.getQueryStr();
-				if((!StringUtils.isEmpty(queryStr) && queryStr.toLowerCase().contains("dvr")) || name.startsWith("dvrstreamingpacketizer_"))
-				{
-					// strip off the packetizer name here because it will be added back later.
-					name = name.replace("dvrstreamingpacketizer_", "");
-					packetizer = "dvrstreamingpacketizer";
-					repeater = "dvrstreamingrepeater";
-				}
-				else if(httpSession.getHTTPStreamerAdapter() != null)
-				{
-					HTTPStreamerItem item = httpSession.getHTTPStreamerAdapter().getHTTPStreamerItem();
-					if(item != null)
-					{
-						packetizer = item.getLiveStreamPacketizer();
-						repeater = item.getLiveStreamRepeater();
-					}
-				}
-			}
+//			String packetizer = null;
+//			String repeater = null;
+//			if(httpSession != null)
+//			{
+//				String queryStr = httpSession.getQueryStr();
+//				if((!StringUtils.isEmpty(queryStr) && queryStr.toLowerCase().contains("dvr")) || httpSession.getDvrSessionInfo() != null)
+//				{
+//					packetizer = "dvrstreamingpacketizer";
+//					repeater = "dvrstreamingrepeater";
+//				}
+//				else if(httpSession.getHTTPStreamerAdapter() != null)
+//				{
+//					HTTPStreamerItem item = httpSession.getHTTPStreamerAdapter().getHTTPStreamerItem();
+//					if(item != null)
+//					{
+//						packetizer = item.getLiveStreamPacketizer();
+//						repeater = item.getLiveStreamRepeater();
+//					}
+//				}
+//			}
 			
-			if(packetizer == null)
-				packetizer = resolvePacketizer(httpSession);
-			if(repeater == null)
-				repeater = resolveRepeater(httpSession);
+//			if(packetizer == null)
+			String packetizer = resolvePacketizer(httpSession);
+//			if(repeater == null)
+			String repeater = resolveRepeater(httpSession);
 			
+			name = name.replace(packetizer + "_", "");
 			String streamName = getStreamName(name, packetizer, repeater);
 			// AppInstances will stay loaded until there is at least 1 valid connection. 
 			// Increment the connection count to allow the appInstnace to shut down if there are no other connection attempts.
@@ -178,8 +177,11 @@ public class ModuleStreamResolver extends ModuleBase
 		private String resolvePacketizer(IHTTPStreamerSession httpSession)
 		{
 			String ret = null;
-			
-			if(httpSession instanceof HTTPStreamerSessionCupertino)
+			String queryStr = httpSession.getQueryStr();
+			String uri = httpSession.getUri();
+			if((!StringUtils.isEmpty(uri) && uri.toLowerCase().contains("_dvr")) || (!StringUtils.isEmpty(queryStr) && queryStr.toLowerCase().contains("dvr")) || httpSession.getDvrSessionInfo() != null)
+				ret = "dvrstreamingpacketizer";
+			else if(httpSession instanceof HTTPStreamerSessionCupertino)
 				ret = "cupertinostreamingpacketizer";
 			else if(httpSession instanceof HTTPStreamerSessionSanJose)
 				ret = "sanjosestreamingpacketizer";
@@ -195,7 +197,11 @@ public class ModuleStreamResolver extends ModuleBase
 		{
 			String ret = null;
 			
-			if(httpSession instanceof HTTPStreamerSessionCupertino)
+			String queryStr = httpSession.getQueryStr();
+			String uri = httpSession.getUri();
+			if((!StringUtils.isEmpty(uri) && uri.toLowerCase().contains("_dvr")) || (!StringUtils.isEmpty(queryStr) && queryStr.toLowerCase().contains("dvr")) || httpSession.getDvrSessionInfo() != null)
+				ret = "dvrstreamingrepeater";
+			else if(httpSession instanceof HTTPStreamerSessionCupertino)
 				ret = "cupertinostreamingrepeater";
 			else if(httpSession instanceof HTTPStreamerSessionSanJose)
 				ret = "sanjosestreamingrepeater";
@@ -235,7 +241,7 @@ public class ModuleStreamResolver extends ModuleBase
 			
 			name = ModuleUtils.decodeStreamExtension(name, null)[0];
 
-			String nameContext = packetizer != null ? packetizer + "_" + name : name;
+			String nameContext = determineNameContext(packetizer, name);
 
 			if (debug)
 				logger.info(ModuleStreamResolver.MODULE_NAME + ".getStreamName[" + nameContext + "] ");
@@ -557,6 +563,10 @@ public class ModuleStreamResolver extends ModuleBase
 			if(packetizer != null && streamName.startsWith(packetizer))
 			{
 				name = streamName.substring(packetizer.length() + 1);
+			}
+			else if(streamName.startsWith("wowz_"))
+			{
+				name = streamName.substring(5);
 			}
 			else
 			{
@@ -983,5 +993,26 @@ public class ModuleStreamResolver extends ModuleBase
 		}
 
 		return appInstance.getMediaReaderContentType(streamExt) == IMediaReader.CONTENTTYPE_MEDIALIST;
+	}
+	
+	private String determineNameContext(String packetizer, String name)
+	{
+		String nameContext = null;
+		while (true)
+		{
+			if(StringUtils.isEmpty(packetizer))
+			{
+				nameContext = "wowz_" + name;
+				break;
+			}
+			if(packetizer.startsWith("dvr"))
+			{
+				nameContext = name;
+				break;
+			}
+			nameContext = packetizer + "_" + name;
+			break;
+		}
+		return nameContext;
 	}
 }
