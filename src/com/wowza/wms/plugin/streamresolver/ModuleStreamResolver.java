@@ -107,30 +107,7 @@ public class ModuleStreamResolver extends ModuleBase
 			if(isMediaList(name))
 				return name;
 
-//			String packetizer = null;
-//			String repeater = null;
-//			if(httpSession != null)
-//			{
-//				String queryStr = httpSession.getQueryStr();
-//				if((!StringUtils.isEmpty(queryStr) && queryStr.toLowerCase().contains("dvr")) || httpSession.getDvrSessionInfo() != null)
-//				{
-//					packetizer = "dvrstreamingpacketizer";
-//					repeater = "dvrstreamingrepeater";
-//				}
-//				else if(httpSession.getHTTPStreamerAdapter() != null)
-//				{
-//					HTTPStreamerItem item = httpSession.getHTTPStreamerAdapter().getHTTPStreamerItem();
-//					if(item != null)
-//					{
-//						packetizer = item.getLiveStreamPacketizer();
-//						repeater = item.getLiveStreamRepeater();
-//					}
-//				}
-//			}
-			
-//			if(packetizer == null)
 			String packetizer = resolvePacketizer(httpSession);
-//			if(repeater == null)
 			String repeater = resolveRepeater(httpSession);
 			
 			name = name.replace(packetizer + "_", "");
@@ -773,7 +750,7 @@ public class ModuleStreamResolver extends ModuleBase
 		defaultApplicationName = appInstance.getProperties().getPropertyStr(MODULE_PROPERTY_PREFIX + "OriginApplicationName", appInstance.getApplication().getName());
 		defaultApplicationInstanceName = appInstance.getProperties().getPropertyStr(MODULE_PROPERTY_PREFIX + "OriginApplicationInstanceName", appInstance.getName());
 		
-		logger.info(MODULE_NAME + ".onAppStart [" + appInstance.getContextStr() + " : build #44]");
+		logger.info(MODULE_NAME + ".onAppStart [" + appInstance.getContextStr() + " : build #45]");
 		
 		appInstance.setStreamNameAliasProvider(new AliasProvider());
 		appInstance.addMediaCasterListener(new MediaCasterListener());

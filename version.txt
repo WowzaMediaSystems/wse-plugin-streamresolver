@@ -1,3 +1,6 @@
+Build 45
+	* Added basic support for DVR streams. DVR failover won't work correctly if there are multipel origins that have versions of the same dvr stream
+
 Build 44
 	* Moved Executor to static field to reduce the number of thread pools that are created
 
