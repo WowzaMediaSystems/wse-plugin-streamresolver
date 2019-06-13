@@ -52,6 +52,9 @@ import com.wowza.wms.mediacaster.MediaCasterNotifyBase;
 import com.wowza.wms.mediacaster.MediaCasterStreamId;
 import com.wowza.wms.mediacaster.MediaCasterStreamItem;
 import com.wowza.wms.mediacaster.wowza.LiveMediaStreamReceiver;
+import com.wowza.wms.medialist.MediaList;
+import com.wowza.wms.medialist.MediaListRendition;
+import com.wowza.wms.medialist.MediaListSegment;
 import com.wowza.wms.module.ModuleBase;
 import com.wowza.wms.rtp.model.RTPSession;
 import com.wowza.wms.stream.IMediaReader;
@@ -59,7 +62,9 @@ import com.wowza.wms.stream.IMediaStream;
 import com.wowza.wms.stream.IMediaStreamPlay;
 import com.wowza.wms.stream.MediaStream;
 import com.wowza.wms.stream.MediaStreamNameAliasProviderBase;
+import com.wowza.wms.util.MediaListUtils;
 import com.wowza.wms.util.ModuleUtils;
+import com.wowza.wms.vhost.IVHost;
 
 import edu.emory.mathcs.backport.java.util.concurrent.locks.WMSReadWriteLock;
 
@@ -105,12 +110,29 @@ public class ModuleStreamResolver extends ModuleBase
 		public String resolvePlayAlias(IApplicationInstance appInstance, String name, IHTTPStreamerSession httpSession)
 		{
 			if(isMediaList(name))
+			{
+				if(!checkMediaListAvailability(appInstance, name, httpSession))
+					return null;
 				return name;
+			}
 
-			String packetizer = resolvePacketizer(httpSession);
-			String repeater = resolveRepeater(httpSession);
+			String packetizer = null;
+			String repeater = null;
+			if(httpSession != null && httpSession.getHTTPStreamerAdapter() != null)
+			{
+				HTTPStreamerItem item = httpSession.getHTTPStreamerAdapter().getHTTPStreamerItem();
+				if(item != null)
+				{
+					packetizer = item.getLiveStreamPacketizer();
+					repeater = item.getLiveStreamRepeater();
+				}
+			}
 			
-			name = name.replace(packetizer + "_", "");
+			if(packetizer == null)
+				packetizer = resolvePacketizer(httpSession);
+			if(repeater == null)
+				repeater = resolveRepeater(httpSession);
+			
 			String streamName = getStreamName(name, packetizer, repeater);
 			// AppInstances will stay loaded until there is at least 1 valid connection. 
 			// Increment the connection count to allow the appInstnace to shut down if there are no other connection attempts.
@@ -118,6 +140,25 @@ public class ModuleStreamResolver extends ModuleBase
 			{
 				appInstance.incClientCountTotal();
 				((ApplicationInstance)appInstance).setClientRemoveTime(System.currentTimeMillis());
+			}
+			
+			if(StringUtils.isEmpty(streamName))
+			{
+				if (debug)
+					logger.info(MODULE_NAME + ".resolvePlayAlias[HttpStreamerSession] after getSteamName [" + appInstance.getContextStr() + "/" + "[" + packetizer + "|" + repeater + "]" + name + "] returned streamName is null", WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
+//				if(httpSession != null)
+//				{
+//					String sessionStreamName = httpSession.getStreamName();
+//					if (debug)
+//						logger.info(MODULE_NAME + ".resolvePlayAlias[HttpStreamerSession] after getSteamName [" + appInstance.getContextStr() + "/" + "[" + packetizer + "|" + repeater + "]" + name + "] check sessionStreamName: " + sessionStreamName, WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
+//					if(isMediaList(sessionStreamName))
+//					{
+//						if (debug)
+//							logger.info(MODULE_NAME + ".resolvePlayAlias[HttpStreamerSession] after getSteamName [" + appInstance.getContextStr() + "/" + "[" + packetizer + "|" + repeater + "]" + name + "] sessionStreamName is a MediaList. return mediaList rendition name : " + name, WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
+//						return name;
+//					}
+//				}
+				return null;
 			}
 			
 			// need to manually register players for smil
@@ -154,11 +195,8 @@ public class ModuleStreamResolver extends ModuleBase
 		private String resolvePacketizer(IHTTPStreamerSession httpSession)
 		{
 			String ret = null;
-			String queryStr = httpSession.getQueryStr();
-			String uri = httpSession.getUri();
-			if((!StringUtils.isEmpty(uri) && uri.toLowerCase().contains("_dvr")) || (!StringUtils.isEmpty(queryStr) && queryStr.toLowerCase().contains("dvr")) || httpSession.getDvrSessionInfo() != null)
-				ret = "dvrstreamingpacketizer";
-			else if(httpSession instanceof HTTPStreamerSessionCupertino)
+			
+			if(httpSession instanceof HTTPStreamerSessionCupertino)
 				ret = "cupertinostreamingpacketizer";
 			else if(httpSession instanceof HTTPStreamerSessionSanJose)
 				ret = "sanjosestreamingpacketizer";
@@ -174,11 +212,7 @@ public class ModuleStreamResolver extends ModuleBase
 		{
 			String ret = null;
 			
-			String queryStr = httpSession.getQueryStr();
-			String uri = httpSession.getUri();
-			if((!StringUtils.isEmpty(uri) && uri.toLowerCase().contains("_dvr")) || (!StringUtils.isEmpty(queryStr) && queryStr.toLowerCase().contains("dvr")) || httpSession.getDvrSessionInfo() != null)
-				ret = "dvrstreamingrepeater";
-			else if(httpSession instanceof HTTPStreamerSessionCupertino)
+			if(httpSession instanceof HTTPStreamerSessionCupertino)
 				ret = "cupertinostreamingrepeater";
 			else if(httpSession instanceof HTTPStreamerSessionSanJose)
 				ret = "sanjosestreamingrepeater";
@@ -218,7 +252,7 @@ public class ModuleStreamResolver extends ModuleBase
 			
 			name = ModuleUtils.decodeStreamExtension(name, null)[0];
 
-			String nameContext = determineNameContext(packetizer, name);
+			String nameContext = packetizer != null ? packetizer + "_" + name : name;
 
 			if (debug)
 				logger.info(ModuleStreamResolver.MODULE_NAME + ".getStreamName[" + nameContext + "] ");
@@ -541,10 +575,6 @@ public class ModuleStreamResolver extends ModuleBase
 			{
 				name = streamName.substring(packetizer.length() + 1);
 			}
-			else if(streamName.startsWith("wowz_"))
-			{
-				name = streamName.substring(5);
-			}
 			else
 			{
 				name = streamName;
@@ -750,7 +780,7 @@ public class ModuleStreamResolver extends ModuleBase
 		defaultApplicationName = appInstance.getProperties().getPropertyStr(MODULE_PROPERTY_PREFIX + "OriginApplicationName", appInstance.getApplication().getName());
 		defaultApplicationInstanceName = appInstance.getProperties().getPropertyStr(MODULE_PROPERTY_PREFIX + "OriginApplicationInstanceName", appInstance.getName());
 		
-		logger.info(MODULE_NAME + ".onAppStart [" + appInstance.getContextStr() + " : build #45]");
+		logger.info(MODULE_NAME + ".onAppStart [" + appInstance.getContextStr() + " : build #47-debug]");
 		
 		appInstance.setStreamNameAliasProvider(new AliasProvider());
 		appInstance.addMediaCasterListener(new MediaCasterListener());
@@ -956,7 +986,7 @@ public class ModuleStreamResolver extends ModuleBase
 		return name.matches("^(rtmp|wowz)[ste]*://.+$");
 	}
 	
-	private boolean isMediaList(String streamName)
+	private String getStreamExt(String streamName)
 	{
 		String streamExt = MediaStream.BASE_STREAM_EXT;
 		if (streamName != null)
@@ -965,31 +995,51 @@ public class ModuleStreamResolver extends ModuleBase
 				streamExt = MediaStream.SMIL_STREAM_EXT;
 			
 			String[] streamDecode = ModuleUtils.decodeStreamExtension(streamName, streamExt);
-			streamName = streamDecode[0];
 			streamExt = streamDecode[1];
 		}
-
-		return appInstance.getMediaReaderContentType(streamExt) == IMediaReader.CONTENTTYPE_MEDIALIST;
+		return streamExt;
 	}
 	
-	private String determineNameContext(String packetizer, String name)
+	private boolean isMediaList(String streamName)
 	{
-		String nameContext = null;
-		while (true)
+		String streamExt = getStreamExt(streamName);
+		return appInstance.getMediaReaderContentType(streamExt) == IMediaReader.CONTENTTYPE_MEDIALIST;
+	}
+
+	private boolean checkMediaListAvailability(IApplicationInstance appInstance, String streamName, IHTTPStreamerSession httpSession)
+	{
+		boolean available = false;
+		String streamExt = getStreamExt(streamName);
+		String[] streamDecode = ModuleUtils.decodeStreamExtension(streamName, streamExt);
+		streamName = streamDecode[0];
+		streamExt = streamDecode[1];
+		MediaList mediaList = MediaListUtils.parseMediaList(appInstance, streamName, streamExt, httpSession);
+		if(mediaList != null)
 		{
-			if(StringUtils.isEmpty(packetizer))
+			MediaListSegment segment = mediaList.getFirstSegment();
+			if(segment != null)
 			{
-				nameContext = "wowz_" + name;
-				break;
+				List<MediaListRendition> renditions = segment.getRenditions();
+				if(!renditions.isEmpty())
+				{
+					int renditionCount = 0;
+					int availableCount = 0;
+					for(MediaListRendition rendition : renditions)
+					{
+						if(rendition.getType() == IVHost.CONTENTTYPE_AUDIO || rendition.getType() == IVHost.CONTENTTYPE_VIDEO)
+						{
+							renditionCount++;
+							String renditionName = rendition.getName();
+							if(((ApplicationInstance)appInstance).internalResolvePlayAlias(renditionName, httpSession) != null)
+								availableCount++;
+						}
+					}
+					if(renditionCount > 0)
+						available = availableCount == renditions.size();
+				}
 			}
-			if(packetizer.startsWith("dvr"))
-			{
-				nameContext = name;
-				break;
-			}
-			nameContext = packetizer + "_" + name;
-			break;
 		}
-		return nameContext;
+		
+		return available;
 	}
 }

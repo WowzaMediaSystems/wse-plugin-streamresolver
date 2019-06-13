@@ -1,3 +1,9 @@
+Build 47
+	* Added a check to make sure all MediaList renditions are available. If any renditions are missing then the MediaList stream won't play
+
+Build 46
+	* Removed DVR support because it broke the other workflows
+
 Build 45
 	* Added basic support for DVR streams. DVR failover won't work correctly if there are multipel origins that have versions of the same dvr stream
 
