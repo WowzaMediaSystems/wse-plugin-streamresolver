@@ -1,5 +1,5 @@
 /*
- * This code and all components (c) Copyright 2006 - 2017, Wowza Media Systems, LLC.  All rights reserved.
+ * This code and all components (c) Copyright 2006 - 2019, Wowza Media Systems, LLC.  All rights reserved.
  * This code is licensed pursuant to the Wowza Public License version 1.0, available at www.wowza.com/legal.
  */
 package com.wowza.wms.plugin.streamresolver;
@@ -33,7 +33,7 @@ public class ServerListenerLocateSourceStream implements IServerNotify2
 	{
 		try
 		{
-			WMSLoggerFactory.getLogger(getClass()).info(MODULE_NAME + ".onServerInit starting up server listener.. Build #45");
+			WMSLoggerFactory.getLogger(getClass()).info(MODULE_NAME + ".onServerInit starting up server listener.. Build #47");
 			boolean debug = server.getProperties().getPropertyBoolean(MODULE_PROPERTY_PREFIX + "UDPListenerDebug", ServerListenerLocateSourceStream._DEBUG);
 			if (WMSLoggerFactory.getLogger(getClass()).isDebugEnabled())
 				debug = true;
