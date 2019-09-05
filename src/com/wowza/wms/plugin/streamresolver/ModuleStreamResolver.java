@@ -77,9 +77,9 @@ public class ModuleStreamResolver extends ModuleBase
 		{
 			if(isMediaList(name))
 				return name;
-			
+
 			String ret = getStreamName(name);
-			// AppInstances will stay loaded until there is at least 1 valid connection. 
+			// AppInstances will stay loaded until there is at least 1 valid connection.
 			// Increment the connection count to allow the appInstnace to shut down if there are no other connection attempts.
 			if(ret == null && appInstance.getClientCountTotal() <= 0)
 			{
@@ -96,7 +96,7 @@ public class ModuleStreamResolver extends ModuleBase
 				return name;
 
 			String ret = getStreamName(name);
-			// AppInstances will stay loaded until there is at least 1 valid connection. 
+			// AppInstances will stay loaded until there is at least 1 valid connection.
 			// Increment the connection count to allow the appInstnace to shut down if there are no other connection attempts.
 			if(ret == null && appInstance.getClientCountTotal() <= 0)
 			{
@@ -127,21 +127,21 @@ public class ModuleStreamResolver extends ModuleBase
 					repeater = item.getLiveStreamRepeater();
 				}
 			}
-			
+
 			if(packetizer == null)
 				packetizer = resolvePacketizer(httpSession);
 			if(repeater == null)
 				repeater = resolveRepeater(httpSession);
-			
+
 			String streamName = getStreamName(name, packetizer, repeater);
-			// AppInstances will stay loaded until there is at least 1 valid connection. 
+			// AppInstances will stay loaded until there is at least 1 valid connection.
 			// Increment the connection count to allow the appInstnace to shut down if there are no other connection attempts.
 			if(streamName == null && appInstance.getClientCountTotal() <= 0)
 			{
 				appInstance.incClientCountTotal();
 				((ApplicationInstance)appInstance).setClientRemoveTime(System.currentTimeMillis());
 			}
-			
+
 			if(StringUtils.isEmpty(streamName))
 			{
 				if (debug)
@@ -160,7 +160,7 @@ public class ModuleStreamResolver extends ModuleBase
 //				}
 				return null;
 			}
-			
+
 			// need to manually register players for smil
 			// [cupertinostreamingpacketizer|cupertinostreamingrepeater]cupertinostreamingpacketizer_myStream
 			String mediaCasterId = "[" + packetizer + "|" + repeater + "]" + streamName;
@@ -185,7 +185,7 @@ public class ModuleStreamResolver extends ModuleBase
 							playerList.add(player);
 							if (debug)
 								logger.info(MODULE_NAME + ".resolvePlayAlias[HttpStreamerSession] after adding player for [" + appInstance.getContextStr() + "/" + mediaCasterId + "] players: " + players.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
-						}	
+						}
 					}
 				}
 			}
@@ -195,7 +195,7 @@ public class ModuleStreamResolver extends ModuleBase
 		private String resolvePacketizer(IHTTPStreamerSession httpSession)
 		{
 			String ret = null;
-			
+
 			if(httpSession instanceof HTTPStreamerSessionCupertino)
 				ret = "cupertinostreamingpacketizer";
 			else if(httpSession instanceof HTTPStreamerSessionSanJose)
@@ -204,14 +204,14 @@ public class ModuleStreamResolver extends ModuleBase
 				ret = "smoothstreamingpacketizer";
 			else if(httpSession instanceof HTTPStreamerSessionMPEGDash)
 				ret = "mpegdashstreamingpacketizer";
-			
+
 			return ret;
 		}
 
 		private String resolveRepeater(IHTTPStreamerSession httpSession)
 		{
 			String ret = null;
-			
+
 			if(httpSession instanceof HTTPStreamerSessionCupertino)
 				ret = "cupertinostreamingrepeater";
 			else if(httpSession instanceof HTTPStreamerSessionSanJose)
@@ -220,7 +220,7 @@ public class ModuleStreamResolver extends ModuleBase
 				ret = "smoothstreamingrepeater";
 			else if(httpSession instanceof HTTPStreamerSessionMPEGDash)
 				ret = "mpegdashstreamingrepeater";
-			
+
 			return ret;
 		}
 
@@ -231,7 +231,7 @@ public class ModuleStreamResolver extends ModuleBase
 				return name;
 
 			String ret = getStreamName(name);
-			// AppInstances will stay loaded until there is at least 1 valid connection. 
+			// AppInstances will stay loaded until there is at least 1 valid connection.
 			// Increment the connection count to allow the appInstnace to shut down if there are no other connection attempts.
 			if(ret == null && appInstance.getClientCountTotal() <= 0)
 			{
@@ -240,7 +240,7 @@ public class ModuleStreamResolver extends ModuleBase
 			}
 			return ret;
 		}
-		
+
 		private String getStreamName(String name)
 		{
 			return getStreamName(name, null, null);
@@ -249,14 +249,14 @@ public class ModuleStreamResolver extends ModuleBase
 		private String getStreamName(String name, String packetizer, String repeater)
 		{
 			name = appInstance.getProperties().getPropertyStr(MODULE_PROPERTY_PREFIX + "OriginStreamName", name);
-			
+
 			name = ModuleUtils.decodeStreamExtension(name, null)[0];
 
 			String nameContext = packetizer != null ? packetizer + "_" + name : name;
 
 			if (debug)
 				logger.info(ModuleStreamResolver.MODULE_NAME + ".getStreamName[" + nameContext + "] ");
-			
+
 			MediaCasterStreamItem mediaCasterStreamItem = appInstance.getMediaCasterStreams().getMediaCaster(nameContext, packetizer, repeater);
 			IMediaCaster mediaCaster = null;
 			if(mediaCasterStreamItem != null)
@@ -272,10 +272,10 @@ public class ModuleStreamResolver extends ModuleBase
 			String url = lookupURL(nameContext, packetizer, false);
 			if(!StringUtils.isEmpty(url) && mediaCaster != null && mediaCaster instanceof LiveMediaStreamReceiver)
 				((LiveMediaStreamReceiver)mediaCaster).resolveURL();
-			
+
 			return StringUtils.isEmpty(url) ? null : nameContext;
 		}
-		
+
 		@Override
 		public String resolveStreamAlias(IApplicationInstance appInstance, String name)
 		{
@@ -304,7 +304,7 @@ public class ModuleStreamResolver extends ModuleBase
 
 			if(isStreamUrl(name) || isMediaList(name))
 				return name;
-			
+
 			synchronized(lock)
 			{
 				url = urls.get(name);
@@ -314,16 +314,16 @@ public class ModuleStreamResolver extends ModuleBase
 			return StringUtils.isEmpty(url) ? "" : url;
 		}
 	}
-	
+
 	class MediaCasterShutdownRunner implements Runnable
 	{
 		final LiveMediaStreamReceiver liveMediaStreamReceiver;
-		
+
 		MediaCasterShutdownRunner(LiveMediaStreamReceiver liveMediaStreamReceiver)
 		{
 			this.liveMediaStreamReceiver = liveMediaStreamReceiver;
 		}
-		
+
 		@Override
 		public void run()
 		{
@@ -408,13 +408,13 @@ public class ModuleStreamResolver extends ModuleBase
 				LiveMediaStreamReceiver liveMediaStreamReceiver = (LiveMediaStreamReceiver)mediaCaster;
 
 				int retryCount = liveMediaStreamReceiver.getProperties().getPropertyInt("connectRetryCount", 0);
-				
+
 				if(++retryCount > maxRetries)
 				{
 					System.out.println("onConnectSuccess calling resolveMediaCasterURL: " + retryCount);
 					resolveMediaCasterURL(liveMediaStreamReceiver);
 				}
-				
+
 				liveMediaStreamReceiver.getProperties().setProperty("connectRetryCount", retryCount);
 			}
 		}
@@ -428,7 +428,7 @@ public class ModuleStreamResolver extends ModuleBase
 				resolveMediaCasterURL((LiveMediaStreamReceiver)mediaCaster);
 			}
 		}
-		
+
 		private void resolveMediaCasterURL(final LiveMediaStreamReceiver mediaCaster)
 		{
 			appInstance.getVHost().getThreadPool().execute(new Runnable() {
@@ -437,11 +437,11 @@ public class ModuleStreamResolver extends ModuleBase
 				public void run()
 				{
 					mediaCaster.getProperties().remove("connectRetryCount");
-					
+
 					MediaCasterStreamId streamId = MediaCasterItem.parseIdString(mediaCaster.getMediaCasterId());
 					String streamName = streamId.getName();
 					String packetizer = streamId.getLiveStreamPacketizer();
-					
+
 					if (debug)
 						logger.info(ModuleStreamResolver.MODULE_NAME + ".onMediaCasterCreate resolving stream name: [" + appInstance.getContextStr() + "/" + streamName + "]");
 					String newURL = lookupURL(streamName, packetizer, true);
@@ -462,7 +462,7 @@ public class ModuleStreamResolver extends ModuleBase
 				}
 			});
 		}
-		
+
 		private void shutdownPlayers(final IMediaCaster mediaCaster)
 		{
 			String mediaCasterId = mediaCaster.getMediaCasterId();
@@ -479,8 +479,8 @@ public class ModuleStreamResolver extends ModuleBase
 			{
 				if(debug)
 					logger.info(MODULE_NAME + ".shutdownPlayers waiting for lock for [" + appInstance.getContextStr() + "/" + mediaCasterId + "]", WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
-				WMSReadWriteLock writeLock = appInstance.getClientsLockObj();
-				writeLock.writeLock().lock();
+//				WMSReadWriteLock writeLock = appInstance.getClientsLockObj();
+//				writeLock.writeLock().lock();
 				try
 				{
 					if(debug)
@@ -512,14 +512,14 @@ public class ModuleStreamResolver extends ModuleBase
 				}
 				finally
 				{
-					writeLock.writeLock().unlock();
+//					writeLock.writeLock().unlock();
 					if(debug)
 						logger.info(MODULE_NAME + ".shutdownPlayers released lock for [" + appInstance.getContextStr() + "/" + mediaCasterId + "]", WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 				}
 			}
 		}
 
-		
+
 
 		@Override
 		public void onMediaCasterDestroy(IMediaCaster mediaCaster)
@@ -548,7 +548,7 @@ public class ModuleStreamResolver extends ModuleBase
 				((LiveMediaStreamReceiver)mediaCaster).getProperties().remove("connectRetryCount");
 			}
 		}
-		
+
 		@Override
 		public void onStreamStop(IMediaCaster mediaCaster)
 		{
@@ -557,7 +557,7 @@ public class ModuleStreamResolver extends ModuleBase
 		}
 
 	}
-	
+
 	class Lookup extends Thread
 	{
 		long startTime;
@@ -565,7 +565,7 @@ public class ModuleStreamResolver extends ModuleBase
 		String name;
 		String packetizer;
 		String url;
-		
+
 		Lookup(String streamName, String packetizer)
 		{
 			super(MODULE_NAME + ".Lookup [" + appInstance.getContextStr() + "/" + streamName + "]");
@@ -581,7 +581,7 @@ public class ModuleStreamResolver extends ModuleBase
 			}
 			this.packetizer = packetizer;
 		}
-		
+
 		public void run()
 		{
 			final List<Future<String>> futures = new ArrayList<Future<String>>();
@@ -652,7 +652,7 @@ public class ModuleStreamResolver extends ModuleBase
 				}
 			}
 		}
-		
+
 		public String toString()
 		{
 			return "Lookup: {streamName: " + streamName + ", name: " + name + ", packetizer: " + packetizer + ", startTime: " + startTime + ", url: " + url + "}";
@@ -736,9 +736,9 @@ public class ModuleStreamResolver extends ModuleBase
 	private static final int _UDP_PORT = 9777;
 	private static final int _UDP_REQUEST_TIMEOUT = 2000;
 	private static final String _PROTOCOL = "wowz";
-	
+
 	private static Executor executor = Executors.newCachedThreadPool();
-	
+
 	private Object lock = new Object();
 	private Map<String, Lookup> lookups = new HashMap<String, Lookup>();
 	private Map<String, String> urls = new HashMap<String, String>();
@@ -779,13 +779,13 @@ public class ModuleStreamResolver extends ModuleBase
 
 		defaultApplicationName = appInstance.getProperties().getPropertyStr(MODULE_PROPERTY_PREFIX + "OriginApplicationName", appInstance.getApplication().getName());
 		defaultApplicationInstanceName = appInstance.getProperties().getPropertyStr(MODULE_PROPERTY_PREFIX + "OriginApplicationInstanceName", appInstance.getName());
-		
-		logger.info(MODULE_NAME + ".onAppStart [" + appInstance.getContextStr() + " : build #47]");
-		
+
+		logger.info(MODULE_NAME + ".onAppStart [" + appInstance.getContextStr() + " : build #48]");
+
 		appInstance.setStreamNameAliasProvider(new AliasProvider());
 		appInstance.addMediaCasterListener(new MediaCasterListener());
 	}
-	
+
 	public void onHTTPSessionDestroy(IHTTPStreamerSession httpSession)
 	{
 		// remove players added in resolvePlayAlias methods. Other players will be removed in onUnRegisterPlayer
@@ -903,7 +903,7 @@ public class ModuleStreamResolver extends ModuleBase
 	{
 
 		String fileURL = Bootstrap.getServerHome(Bootstrap.CONFIGHOME) + "/conf/" + appInstance.getApplication().getName() + "/Application.xml";
-        
+
         if (debug){
             logger.info(MODULE_NAME + ".getNewURLs: fileURL " + fileURL);
         }
@@ -942,7 +942,7 @@ public class ModuleStreamResolver extends ModuleBase
 
 	private String lookupURL(String nameContext, String packetizer, boolean forceNewLookup)
 	{
-		Lookup lookup = null;	
+		Lookup lookup = null;
 		if(debug)
 			logger.info(MODULE_NAME + ".lookupUrl Looking up url for [" + appInstance.getContextStr() + "/(" + nameContext + ":" + packetizer + ")] lookups: " + lookups.toString() + ", urls: " + urls.toString(), WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 		synchronized(lock)
@@ -954,7 +954,7 @@ public class ModuleStreamResolver extends ModuleBase
 					logger.info(MODULE_NAME + ".lookupUrl from urls list, returning url for [" + appInstance.getContextStr() + "/(" + nameContext + ":" + packetizer + ")] url: " + url, WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 				return url;
 			}
-			
+
 			lookup = lookups.get(nameContext);
 			if(lookup == null)
 			{
@@ -973,9 +973,9 @@ public class ModuleStreamResolver extends ModuleBase
 		}
 		catch (InterruptedException e)
 		{
-			
+
 		}
-		
+
 		if(debug)
 			logger.info(MODULE_NAME + ".lookupUrl after lookup, returning url for [" + appInstance.getContextStr() + "/(" + nameContext + ":" + packetizer + ")] url: " + lookup.url, WMSLoggerIDs.CAT_application, WMSLoggerIDs.EVT_comment);
 		return StringUtils.isEmpty(lookup.url) ? "" : lookup.url;
@@ -985,7 +985,7 @@ public class ModuleStreamResolver extends ModuleBase
 	{
 		return name.matches("^(rtmp|wowz)[ste]*://.+$");
 	}
-	
+
 	private String getStreamExt(String streamName)
 	{
 		String streamExt = MediaStream.BASE_STREAM_EXT;
@@ -993,13 +993,13 @@ public class ModuleStreamResolver extends ModuleBase
 		{
 			if (streamName.toLowerCase().endsWith(".smil") || streamName.toLowerCase().endsWith(".smi"))
 				streamExt = MediaStream.SMIL_STREAM_EXT;
-			
+
 			String[] streamDecode = ModuleUtils.decodeStreamExtension(streamName, streamExt);
 			streamExt = streamDecode[1];
 		}
 		return streamExt;
 	}
-	
+
 	private boolean isMediaList(String streamName)
 	{
 		String streamExt = getStreamExt(streamName);
@@ -1039,7 +1039,7 @@ public class ModuleStreamResolver extends ModuleBase
 				}
 			}
 		}
-		
+
 		return available;
 	}
 }

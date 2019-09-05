@@ -33,7 +33,7 @@ public class ServerListenerLocateSourceStream implements IServerNotify2
 	{
 		try
 		{
-			WMSLoggerFactory.getLogger(getClass()).info(MODULE_NAME + ".onServerInit starting up server listener.. Build #47");
+			WMSLoggerFactory.getLogger(getClass()).info(MODULE_NAME + ".onServerInit starting up server listener.. Build #48");
 			boolean debug = server.getProperties().getPropertyBoolean(MODULE_PROPERTY_PREFIX + "UDPListenerDebug", ServerListenerLocateSourceStream._DEBUG);
 			if (WMSLoggerFactory.getLogger(getClass()).isDebugEnabled())
 				debug = true;
@@ -106,7 +106,7 @@ public class ServerListenerLocateSourceStream implements IServerNotify2
 		}
 
 	}
-	
+
 	private String getInternalIPAddress()
 	{
 		String retVal=null;

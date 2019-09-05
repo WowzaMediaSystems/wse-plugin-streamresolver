@@ -1,3 +1,6 @@
+Build 48
+	* Removed call to lock the client write lock which was blocking the application write lock and stalling the server
+
 Build 47
 	* Added a check to make sure all MediaList renditions are available. If any renditions are missing then the MediaList stream won't play
 
