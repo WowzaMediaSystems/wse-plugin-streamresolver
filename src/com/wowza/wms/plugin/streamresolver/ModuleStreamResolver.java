@@ -123,8 +123,9 @@ public class ModuleStreamResolver extends ModuleBase
 				HTTPStreamerItem item = httpSession.getHTTPStreamerAdapter().getHTTPStreamerItem();
 				if(item != null)
 				{
-					packetizer = item.getLiveStreamPacketizer();
-					repeater = item.getLiveStreamRepeater();
+					// TODO: rl Need to come up with a different way to do this.
+//					packetizer = item.getLiveStreamPacketizer();
+//					repeater = item.getLiveStreamRepeater();
 				}
 			}
 
@@ -252,7 +253,7 @@ public class ModuleStreamResolver extends ModuleBase
 
 			name = ModuleUtils.decodeStreamExtension(name, null)[0];
 
-			String nameContext = packetizer != null ? packetizer + "_" + name : name;
+			String nameContext = /*packetizer != null ? packetizer + "_" + name :*/ name;
 
 			if (debug)
 				logger.info(ModuleStreamResolver.MODULE_NAME + ".getStreamName[" + nameContext + "] ");
@@ -784,6 +785,25 @@ public class ModuleStreamResolver extends ModuleBase
 
 		appInstance.setStreamNameAliasProvider(new AliasProvider());
 		appInstance.addMediaCasterListener(new MediaCasterListener());
+	}
+	
+	public void onStreamDestroy(IMediaStream stream)
+	{
+		if(stream != null && !stream.isMediaCasterPlay())
+		{
+			IMediaStreamPlay player = stream.getPlayer();
+			if(player != null)
+			{
+				synchronized(lock)
+				{
+					Iterator<String> iter = players.keySet().iterator();
+					while (iter.hasNext())
+					{
+						players.get(iter.next()).remove(player);
+					}
+				}
+			}
+		}
 	}
 
 	public void onHTTPSessionDestroy(IHTTPStreamerSession httpSession)
