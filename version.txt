@@ -1,3 +1,7 @@
+Build 49
+    * Changed stream naming so that names are consistent across protocols
+    * General refactoring in preparation to adding support for CMAF and WebRTC. This will be the last version that will work with Wowza Streaming Engine < 4.7.8
+
 Build 48
 	* Removed call to lock the client write lock which was blocking the application write lock and stalling the server
 
@@ -8,7 +12,7 @@ Build 46
 	* Removed DVR support because it broke the other workflows
 
 Build 45
-	* Added basic support for DVR streams. DVR failover won't work correctly if there are multipel origins that have versions of the same dvr stream
+	* Added basic support for DVR streams. DVR failover won't work correctly if there are multiple origins that have versions of the same dvr stream
 
 Build 44
 	* Moved Executor to static field to reduce the number of thread pools that are created
